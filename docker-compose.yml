@@ -1,0 +1,146 @@
+version: '3'
+
+services:
+    nginx:
+        build: 
+            context: ./nginx
+            dockerfile: Dockerfile
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - ${DOCUMENT_ROOT}:/var/www
+            - ${NGINX_CONFIG}:/etc/nginx/conf.d
+            - ${NGINX_LOG}:/var/log/nginx
+            - ./nginx/php5.conf:/etc/nginx/php5.conf
+            - ./nginx/php71.conf:/etc/nginx/php71.conf
+            - ./nginx/php72.conf:/etc/nginx/php72.conf
+        links:
+            - php5
+            - php71
+        depends_on:
+            - php5
+            - php71
+        dns:
+            - 8.8.8.8
+            - 8.8.4.4
+        
+    php5:
+        build: 
+            context: ./php/5.6
+            dockerfile: Dockerfile
+        volumes:
+            - ${DOCUMENT_ROOT}:/var/www
+            - ./php/5.6/supervisor:/etc/supervisor
+        ports:
+            - "9056:9056"
+            - "37017:27017"
+        depends_on:
+            - elasticsearch
+            - mariadb
+            - redis
+            - rabbitmq
+        network_mode: "host"
+    
+    php71:
+        build: 
+            context: ./php/7.1
+            dockerfile: Dockerfile
+        volumes:
+            - ${DOCUMENT_ROOT}:/var/www
+            - ./php/7.1/supervisor:/etc/supervisor
+        ports:
+            - "9071:9071"
+        depends_on:
+            - rabbitmq
+            - elasticsearch
+            - mariadb
+            - mongodb
+            - redis
+        network_mode: "host"
+
+    php72:
+        build: 
+            context: ./php/7.2
+            dockerfile: Dockerfile
+        volumes:
+            - ${DOCUMENT_ROOT}:/var/www
+            - ./php/7.2/supervisor:/etc/supervisor
+        ports:
+            - "9072:9072"
+        depends_on:
+            - rabbitmq
+            - elasticsearch
+            - mariadb
+            - mongodb
+            - redis
+        network_mode: "host"
+
+    mariadb:
+        image: mariadb:latest
+        ports:
+            - "3306:3306"
+        volumes:
+            - ${MARIADB_DATA}:/var/lib/mysql/
+            - ${MARIADB_IMPORT_DB}:/var/www/databases/
+        environment:
+            MYSQL_ROOT_PASSWORD: ""
+            MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+        dns:
+            - 8.8.8.8
+            - 8.8.4.4
+
+    elasticsearch:
+        build: 
+            context: ./databases/elasticsearch
+            dockerfile: Dockerfile
+        volumes:
+            - ${ELASTICSEARCH_LOG}:/var/log/elasticsearch
+            - ${ELASTICSEARCH_DATA}:/usr/share/elasticsearch/data
+            - ${ELASTICSEARCH_CONFIG}:/etc/elasticsearch
+        environment:
+            - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+            - bootstrap.memory_lock=true
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        ports:
+            - "9200:9200"
+            - "9300:9300"
+        tty: true
+        dns:
+            - 8.8.8.8
+            - 8.8.4.4
+    
+    mongodb:
+        image: mongo:4.0
+        ports:
+            - "27017:27017"
+        volumes:
+            - ./databases/mongodb/logs:/var/log/mongodb
+            - ./databases/mongodb/databases:/data/db
+            - ./databases/mongodb/configdb:/data/configdb
+            - ./databases/mongodb/sample:/var/www/databases
+        dns:
+            - 8.8.8.8
+            - 8.8.4.4
+
+    redis:
+        image: redis:latest
+        volumes:
+          - ${REDIS_DATA}:/data
+        ports:
+            - "6379:6379"
+
+    rabbitmq:
+        image: rabbitmq:3-management
+        environment:
+            RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+            RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+        ports:
+            - "15672:15672"
+            - "5672:5672"
+        dns:
+            - 8.8.8.8
+            - 8.8.4.4

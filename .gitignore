@@ -1,0 +1,13 @@
+databases/elasticsearch/logs/*
+databases/elasticsearch/plugins/*
+databases/elasticsearch/data/*
+databases/mariadb/data/*
+databases/mariadb/databases/*
+databases/mongodb/databases/*
+databases/redis/data/*
+nginx/conf.d/*
+nginx/logs/*
+php/7.1/supervisor/cache/*
+php/7.1/supervisor/conf.d/*
+php/7.1/supervisor/cache/*
+source/html/*
