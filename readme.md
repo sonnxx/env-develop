@@ -24,8 +24,8 @@ Before anything, you need to make sure you have Docker properly setup in your en
 ## Usage
 You are up and running in three simple steps:
 ```sh
-$ git clone https://github.com/sprintcube/docker-compose-lamp.git services_dev
-$ cd services_dev
+$ git clone https://github.com/xuansonitvn/env-develop.git env_develop
+$ cd env_develop
 $ sh bash/setup.sh
 ```
 
