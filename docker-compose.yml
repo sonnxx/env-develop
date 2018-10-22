@@ -18,7 +18,7 @@ services:
         depends_on:
             - php5
             - php71
-		network_mode: "host"
+        network_mode: "host"
         
     php5:
         build: 
