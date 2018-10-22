@@ -15,15 +15,10 @@ services:
             - ./nginx/php5.conf:/etc/nginx/php5.conf
             - ./nginx/php71.conf:/etc/nginx/php71.conf
             - ./nginx/php72.conf:/etc/nginx/php72.conf
-        links:
-            - php5
-            - php71
         depends_on:
             - php5
             - php71
-        dns:
-            - 8.8.8.8
-            - 8.8.4.4
+		network_mode: "host"
         
     php5:
         build: 
@@ -32,9 +27,6 @@ services:
         volumes:
             - ${DOCUMENT_ROOT}:/var/www
             - ./php/5.6/supervisor:/etc/supervisor
-        ports:
-            - "9056:9056"
-            - "37017:27017"
         depends_on:
             - elasticsearch
             - mariadb
@@ -49,8 +41,6 @@ services:
         volumes:
             - ${DOCUMENT_ROOT}:/var/www
             - ./php/7.1/supervisor:/etc/supervisor
-        ports:
-            - "9071:9071"
         depends_on:
             - rabbitmq
             - elasticsearch
@@ -66,8 +56,6 @@ services:
         volumes:
             - ${DOCUMENT_ROOT}:/var/www
             - ./php/7.2/supervisor:/etc/supervisor
-        ports:
-            - "9072:9072"
         depends_on:
             - rabbitmq
             - elasticsearch
