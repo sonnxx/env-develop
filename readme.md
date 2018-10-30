@@ -26,7 +26,7 @@ You are up and running in three simple steps:
 ```sh
 $ git clone https://github.com/xuansonitvn/env-develop.git env_develop
 $ cd env_develop
-$ sh bash/setup.sh
+$ bash/setup.sh
 ```
 
 #### Nginx

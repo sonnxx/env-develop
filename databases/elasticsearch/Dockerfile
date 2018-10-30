@@ -1,8 +1,8 @@
 FROM elasticsearch:5.6.12
 
-MAINTAINER sonnx <sonnx.it@gmail.com>
+MAINTAINER XuanSon <xuansonitvn@gmail.com>
 
-LABEL maintainer="sonnx <sonnx.it@gmail.com>" 
+LABEL maintainer="XuanSon <xuansonitvn@gmail.com>" 
 LABEL version="1.0"
 
 # Set up locales

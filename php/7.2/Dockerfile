@@ -1,8 +1,8 @@
 FROM ubuntu:16.04
 
-MAINTAINER Tuoitre <dev@tuoitre.com.vn>
+MAINTAINER XuanSon <xuansonitvn@gmail.com>
 
-LABEL maintainer="Tuoitre <dev@tuoitre.com.vn>" \
+LABEL maintainer="XuanSon <xuansonitvn@gmail.com>" \
 	org.label-schema.name="Ubuntu 16.04 with PHP 7, optimised using PHP-FPM" 
 LABEL version="1.0"
 

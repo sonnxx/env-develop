@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 
-LABEL maintainer="sonnx <sonnx.it@gmail.com>" \
+LABEL maintainer="XuanSon <xuansonitvn@gmail.com>" \
 	org.label-schema.name="Ubuntu 16.04 with nginx"
 LABEL version="1.0"
 

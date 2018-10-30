@@ -19,6 +19,9 @@ services:
             - php5
             - php71
         network_mode: "host"
+        dns:
+            - 8.8.8.8
+            - 8.8.4.4
         
     php5:
         build: 
@@ -33,6 +36,9 @@ services:
             - redis
             - rabbitmq
         network_mode: "host"
+        dns:
+            - 8.8.8.8
+            - 8.8.4.4
     
     php71:
         build: 
@@ -48,6 +54,9 @@ services:
             - mongodb
             - redis
         network_mode: "host"
+        dns:
+            - 8.8.8.8
+            - 8.8.4.4
 
     php72:
         build: 
@@ -63,6 +72,9 @@ services:
             - mongodb
             - redis
         network_mode: "host"
+        dns:
+            - 8.8.8.8
+            - 8.8.4.4
 
     mariadb:
         image: mariadb:latest

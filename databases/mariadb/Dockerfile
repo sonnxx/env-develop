@@ -1,8 +1,8 @@
 FROM ubuntu:16.04
 
-MAINTAINER sonnx <sonnx.it@gmail.com>
+MAINTAINER XuanSon <xuansonitvn@gmail.com>
 
-LABEL maintainer="sonnx <sonnx.it@gmail.com>" \
+LABEL maintainer="XuanSon <xuansonitvn@gmail.com>" \
 	org.label-schema.name="Ubuntu 16.04 with redis" 
 LABEL version="1.0"
 
