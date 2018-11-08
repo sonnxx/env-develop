@@ -29,6 +29,7 @@ services:
             dockerfile: Dockerfile
         volumes:
             - ${DOCUMENT_ROOT}:/var/www
+            - ./php/5.6/crontab:/etc/cron.d
             - ./php/5.6/supervisor:/etc/supervisor
         depends_on:
             - elasticsearch
