@@ -58,6 +58,8 @@ ADD ./conf.d/php.ini /etc/php/7.2/fpm/php.ini
 ADD ./conf.d/php-fpm.conf /etc/php/7.2/fpm/php-fpm.conf
 ADD ./supervisor/supervisord.conf /etc/supervisor/supervisord.conf
 
+WORKDIR /var/www/html
+
 EXPOSE 9072
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

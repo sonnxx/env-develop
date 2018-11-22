@@ -36,10 +36,10 @@ RUN /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
 
 RUN apt-get install -y libcurl4-gnutls-dev
 
-# RUN echo "* - nofile 65535" >> /etc/security/limits.conf && \
-    # echo "* - memlock unlimited" >> /etc/security/limits.conf && \
-    # echo vm.max_map_count=262144 > /etc/sysctl.d/max_map_count.conf && \
-    # echo vm.swappiness=0 > /etc/sysctl.d/swappiness.conf
+RUN echo "* - nofile 65535" >> /etc/security/limits.conf && \
+    echo "* - memlock unlimited" >> /etc/security/limits.conf && \
+    echo vm.max_map_count=262144 > /etc/sysctl.d/max_map_count.conf && \
+    echo vm.swappiness=0 > /etc/sysctl.d/swappiness.conf
 
 # ENV ES_HEAP_SIZE 1g
 # ENV MAX_OPEN_FILES=65535
