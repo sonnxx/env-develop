@@ -18,6 +18,7 @@ services:
         depends_on:
             - php5
             - php71
+            - php72
         dns:
             - 8.8.8.8
             - 8.8.4.4
