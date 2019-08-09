@@ -92,19 +92,22 @@ services:
             - ${ELASTICSEARCH_LOG}:/var/log/elasticsearch
             - ${ELASTICSEARCH_DATA}:/usr/share/elasticsearch/data
             - ${ELASTICSEARCH_CONFIG}:/etc/elasticsearch
+            - ${ELASTICSEARCH_KIBANA}/kibana.yml:/usr/share/kibana/config/kibana.yml
         ports:
             - "9200:9200"
             - "9300:9300"
+            - "5601:5601"
         dns:
             - 8.8.8.8
             - 8.8.4.4
-    kibana:
-        image: docker.elastic.co/kibana/kibana:5.6.13
-        volumes:
-            - ${ELASTICSEARCH_KIBANA}/kibana.yml:/usr/share/kibana/config/kibana.yml
-        ports:
-            - "5601:5601"
-        network_mode: "host"
+    
+    # kibana:
+    #     image: docker.elastic.co/kibana/kibana:5.6.13
+    #     volumes:
+    #         - ${ELASTICSEARCH_KIBANA}/kibana.yml:/usr/share/kibana/config/kibana.yml
+    #     ports:
+    #         - "5601:5601"
+    #     network_mode: "host"
     
     mongodb:
         image: mongo:4.0
