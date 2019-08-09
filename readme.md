@@ -9,7 +9,7 @@ This is a basic environment built using Docker Compose. It consists following:
 | MariaDb | latest | 3306 |
 | Mongodb | 4.0 | 27017, 37017 |
 | Redis | latest | 6379 |
-| ElasticSearch | 5.6.12 | 9200, 9300 |
+| ElasticSearch | 6.8.2 | 9200, 9300 |
 | Supervisor | latest | |
 | Rabbitmq | latest | 5672, 15672 |
 
