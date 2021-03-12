@@ -1,5 +1,6 @@
-databases/elasticsearch/*/*
-databases/elasticsearch24/*/*
+databases/elasticsearch/logs/*
+databases/elasticsearch/plugins/*
+databases/elasticsearch/data/*
 databases/mariadb/data/*
 databases/mariadb/databases/*
 databases/mongodb/databases/*
