@@ -2,7 +2,7 @@ version: '3'
 
 services:
     nginx:
-        build: 
+        build:
             context: ./nginx
             dockerfile: Dockerfile
         ports:
@@ -12,20 +12,25 @@ services:
             - ${DOCUMENT_ROOT}:/var/www
             - ${NGINX_CONFIG}:/etc/nginx/conf.d
             - ${NGINX_LOG}:/var/log/nginx
+            - ./nginx/h5bp:/etc/nginx/h5bp
+            - ./nginx/mime.types:/etc/nginx/mime.types
+            - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+            - ./nginx/fastcgi.conf:/etc/nginx/fastcgi.conf
+            - ./nginx/fastcgi_params:/etc/nginx/fastcgi_params
             - ./nginx/php5.conf:/etc/nginx/php5.conf
             - ./nginx/php71.conf:/etc/nginx/php71.conf
-            - ./nginx/php72.conf:/etc/nginx/php72.conf
+            - ./nginx/php74.conf:/etc/nginx/php74.conf
         depends_on:
             - php5
             - php71
-            - php72
-        network_mode: "host"
+            - php74
         dns:
             - 8.8.8.8
             - 8.8.4.4
-        
+        network_mode: "host"
+
     php5:
-        build: 
+        build:
             context: ./php/5.6
             dockerfile: Dockerfile
         volumes:
@@ -37,13 +42,13 @@ services:
             - mariadb
             - redis
             - rabbitmq
-        network_mode: "host"
         dns:
             - 8.8.8.8
             - 8.8.4.4
-    
+        network_mode: "host"
+
     php71:
-        build: 
+        build:
             context: ./php/7.1
             dockerfile: Dockerfile
         volumes:
@@ -55,28 +60,28 @@ services:
             - mariadb
             - mongodb
             - redis
-        network_mode: "host"
         dns:
             - 8.8.8.8
             - 8.8.4.4
+        network_mode: "host"
 
-    php72:
-        build: 
-            context: ./php/7.2
+    php74:
+        build:
+            context: ./php/7.4
             dockerfile: Dockerfile
         volumes:
             - ${DOCUMENT_ROOT}:/var/www
-            - ./php/7.2/supervisor:/etc/supervisor
+            - ./php/7.4/supervisor:/etc/supervisor
         depends_on:
             - rabbitmq
             - elasticsearch
             - mariadb
             - mongodb
             - redis
-        network_mode: "host"
         dns:
             - 8.8.8.8
             - 8.8.4.4
+        network_mode: "host"
 
     mariadb:
         image: mariadb:latest
@@ -93,7 +98,7 @@ services:
             - 8.8.4.4
 
     elasticsearch:
-        build: 
+        build:
             context: ./databases/elasticsearch
             dockerfile: Dockerfile2
         volumes:
@@ -116,7 +121,7 @@ services:
     #     ports:
     #         - "5601:5601"
     #     network_mode: "host"
-    
+
     mongodb:
         image: mongo:4.0
         ports:
@@ -133,7 +138,7 @@ services:
     redis:
         image: redis:latest
         volumes:
-          - ${REDIS_DATA}:/data
+            - ${REDIS_DATA}:/data
         ports:
             - "6379:6379"
 

@@ -33,10 +33,10 @@ cd -P "$( dirname "$SOURCE" )"
 sh tests/docker.sh
 
 if [[ ${machine} == 'MacOS' ]]; then
-	
+
 	ipadress_php5=$( docker exec $(docker ps -qf "name=php5") bash -c "ifconfig docker0 | grep 'inet addr' | cut -d ':' -f 2 | cut -d ' ' -f 1" )
 	ipadress_php71=$( docker exec $(docker ps -qf "name=php71") bash -c "ifconfig docker0 | grep 'inet addr' | cut -d ':' -f 2 | cut -d ' ' -f 1" )
-	ipadress_php72=$( docker exec $(docker ps -qf "name=php72") bash -c "ifconfig docker0 | grep 'inet addr' | cut -d ':' -f 2 | cut -d ' ' -f 1" )
+	ipadress_php74=$( docker exec $(docker ps -qf "name=php74") bash -c "ifconfig docker0 | grep 'inet addr' | cut -d ':' -f 2 | cut -d ' ' -f 1" )
 	echo ""
 	echo "|==============================================================|"
 	echo "| Note: If is OS Mac, you should update the contents as below =|"
@@ -44,5 +44,5 @@ if [[ ${machine} == 'MacOS' ]]; then
 	echo ""
 	echo 'Update IPAddress at file nginx/php5.conf => fastcgi_pass '${ipadress_php5}':9056;'
 	echo 'Update IPAddress at file nginx/php71.conf => fastcgi_pass '${ipadress_php71}':9071;'
-	echo 'Update IPAddress at file nginx/php72.conf => fastcgi_pass '${ipadress_php72}':9072;'
+	echo 'Update IPAddress at file nginx/php74.conf => fastcgi_pass '${ipadress_php74}':9074;'
 fi
