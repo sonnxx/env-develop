@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # apt-get install curl software-properties-common
-curl -sL https://deb.nodesource.com/setup_15.x | bash - && apt-get install -y nodejs && node -v && npm -v
+curl -sL https://deb.nodesource.com/setup_15.x | bash - && apt-get install -y nodejs && node -v && npm -v && npm install pm2@latest -g
+
 ## Run `apt-get install -y nodejs` to install Node.js 15.x and npm
 
 ## You may also need development tools to build native addons:
