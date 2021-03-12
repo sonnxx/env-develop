@@ -15,7 +15,7 @@ This is a basic environment built using Docker Compose. It consists following:
 | Supervisor | latest | |
 | RabbitMQ | latest | 5672, 15672 |
 
-> Note: As of now, we have 3 different port for different PHP versions. Use appropriate port as per your php version need: 9056, 9071, 9072
+> Note: As of now, we have 3 different port for different PHP versions. Use appropriate port as per your php version need: 9056, 9071, 9074
 
 ## Requirements
 - Install Docker >= 18.06.1-ce
