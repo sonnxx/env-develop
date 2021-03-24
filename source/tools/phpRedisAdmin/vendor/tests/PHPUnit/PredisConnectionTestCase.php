@@ -12,6 +12,8 @@
 namespace Predis\Connection;
 
 use PredisTestCase;
+use PHPUnit\Framework\MockObject\MockObject;
+use Predis\Command\CommandInterface;
 
 /**
  * @group realm-connection
@@ -21,7 +23,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testConstructorDoesNotOpenConnection()
+    public function testConstructorDoesNotOpenConnection(): void
     {
         $connection = $this->createConnection();
 
@@ -31,7 +33,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testSupportsSchemeTCP()
+    public function testSupportsSchemeTCP(): void
     {
         $connection = $this->createConnectionWithParams(array('scheme' => 'tcp'));
 
@@ -41,7 +43,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testSupportsSchemeRedis()
+    public function testSupportsSchemeRedis(): void
     {
         $connection = $this->createConnectionWithParams(array('scheme' => 'redis'));
 
@@ -51,7 +53,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testSupportsSchemeTls()
+    public function testSupportsSchemeTls(): void
     {
         $connection = $this->createConnectionWithParams(array('scheme' => 'tls'));
 
@@ -61,7 +63,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testSupportsSchemeRediss()
+    public function testSupportsSchemeRediss(): void
     {
         $connection = $this->createConnectionWithParams(array('scheme' => 'rediss'));
 
@@ -71,7 +73,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testSupportsSchemeUnix()
+    public function testSupportsSchemeUnix(): void
     {
         $connection = $this->createConnectionWithParams(array('scheme' => 'unix'));
 
@@ -80,18 +82,19 @@ abstract class PredisConnectionTestCase extends PredisTestCase
 
     /**
      * @group disconnected
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Invalid scheme: 'udp'.
      */
-    public function testThrowsExceptionOnInvalidScheme()
+    public function testThrowsExceptionOnInvalidScheme(): void
     {
+        $this->expectException('InvalidArgumentException');
+        $this->expectExceptionMessage("Invalid scheme: 'udp'");
+
         $this->createConnectionWithParams(array('scheme' => 'udp'));
     }
 
     /**
      * @group disconnected
      */
-    public function testExposesParameters()
+    public function testExposesParameters(): void
     {
         $parameters = $this->getParameters();
         $connection = $this->createConnectionWithParams($parameters);
@@ -102,7 +105,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testCanBeSerialized()
+    public function testCanBeSerialized(): void
     {
         $parameters = $this->getParameters(array(
             'alias' => 'redis',
@@ -112,7 +115,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
         $connection = $this->createConnectionWithParams($parameters);
         $unserialized = unserialize(serialize($connection));
 
-        $this->assertInstanceOf(static::CONNECTION_CLASS, $unserialized);
+        $this->assertInstanceOf($this->getConnectionClass(), $unserialized);
         $this->assertEquals($parameters, $unserialized->getParameters());
     }
 
@@ -124,7 +127,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
      * @group connected
      * @requires PHP 5.4
      */
-    public function testAcceptsTcpNodelayParameter()
+    public function testAcceptsTcpNodelayParameter(): void
     {
         $connection = $this->createConnectionWithParams(array('tcp_nodelay' => false));
         $connection->connect();
@@ -138,7 +141,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testConnectForcesConnection()
+    public function testConnectForcesConnection(): void
     {
         $connection = $this->createConnection();
 
@@ -150,7 +153,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testDoesNotThrowExceptionOnConnectWhenAlreadyConnected()
+    public function testDoesNotThrowExceptionOnConnectWhenAlreadyConnected(): void
     {
         $connection = $this->createConnection();
 
@@ -164,7 +167,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testDisconnectForcesDisconnection()
+    public function testDisconnectForcesDisconnection(): void
     {
         $connection = $this->createConnection();
 
@@ -178,7 +181,7 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testDoesNotThrowExceptionOnDisconnectWhenAlreadyDisconnected()
+    public function testDoesNotThrowExceptionOnDisconnectWhenAlreadyDisconnected(): void
     {
         $connection = $this->createConnection();
 
@@ -190,24 +193,24 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testGetResourceForcesConnection()
+    public function testGetResourceForcesConnection(): void
     {
         $connection = $this->createConnection();
 
         $this->assertFalse($connection->isConnected());
-        $this->assertInternalType('resource', $connection->getResource());
+        $this->assertIsResource($connection->getResource());
         $this->assertTrue($connection->isConnected());
     }
 
     /**
      * @group connected
      */
-    public function testSendingCommandForcesConnection()
+    public function testSendingCommandForcesConnection(): void
     {
         $connection = $this->createConnection();
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
 
-        $cmdPing = $profile->createCommand('ping');
+        $cmdPing = $commands->create('ping');
 
         $this->assertEquals('PONG', $connection->executeCommand($cmdPing));
         $this->assertTrue($connection->isConnected());
@@ -216,13 +219,16 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testExecutesCommandOnServer()
+    public function testExecutesCommandOnServer(): void
     {
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
 
-        $cmdPing = $this->getMock($profile->getCommandClass('ping'), array('parseResponse'));
+        /** @var CommandInterface|MockObject */
+        $cmdPing = $this->getMockBuilder($commands->getCommandClass('ping'))
+            ->onlyMethods(array('parseResponse'))
+            ->getMock();
         $cmdPing->expects($this->never())
-                ->method('parseResponse');
+            ->method('parseResponse');
 
         $connection = $this->createConnection();
 
@@ -232,10 +238,10 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testExecutesCommandWithHolesInArguments()
+    public function testExecutesCommandWithHolesInArguments(): void
     {
-        $profile = $this->getCurrentProfile();
-        $cmdDel = $profile->createCommand('mget', array(0 => 'key:0', 2 => 'key:2'));
+        $commands = $this->getCommandFactory();
+        $cmdDel = $commands->create('mget', array(0 => 'key:0', 2 => 'key:2'));
 
         $connection = $this->createConnection();
 
@@ -245,15 +251,15 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testExecutesMultipleCommandsOnServer()
+    public function testExecutesMultipleCommandsOnServer(): void
     {
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
 
-        $cmdPing = $profile->createCommand('ping');
-        $cmdEcho = $profile->createCommand('echo', array('echoed'));
-        $cmdGet = $profile->createCommand('get', array('foobar'));
-        $cmdRpush = $profile->createCommand('rpush', array('metavars', 'foo', 'hoge', 'lol'));
-        $cmdLrange = $profile->createCommand('lrange', array('metavars', 0, -1));
+        $cmdPing = $commands->create('ping');
+        $cmdEcho = $commands->create('echo', array('echoed'));
+        $cmdGet = $commands->create('get', array('foobar'));
+        $cmdRpush = $commands->create('rpush', array('metavars', 'foo', 'hoge', 'lol'));
+        $cmdLrange = $commands->create('lrange', array('metavars', 0, -1));
 
         $connection = $this->createConnection(true);
 
@@ -267,14 +273,18 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testWritesCommandToServer()
+    public function testWritesCommandToServer(): void
     {
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
 
-        $cmdEcho = $this->getMock($profile->getCommandClass('echo'), array('parseResponse'));
+        /** @var CommandInterface|MockObject */
+        $cmdEcho = $this->getMockBuilder($commands->getCommandClass('echo'))
+            ->onlyMethods(array('parseResponse'))
+            ->getMock();
         $cmdEcho->setArguments(array('ECHOED'));
-        $cmdEcho->expects($this->never())
-                ->method('parseResponse');
+        $cmdEcho
+            ->expects($this->never())
+            ->method('parseResponse');
 
         $connection = $this->createConnection();
         $connection->writeRequest($cmdEcho);
@@ -284,14 +294,18 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testReadsCommandFromServer()
+    public function testReadsCommandFromServer(): void
     {
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
 
-        $cmdEcho = $this->getMock($profile->getCommandClass('echo'), array('parseResponse'));
+        /** @var CommandInterface|MockObject */
+        $cmdEcho = $this->getMockBuilder($commands->getCommandClass('echo'))
+            ->onlyMethods(array('parseResponse'))
+            ->getMock();
         $cmdEcho->setArguments(array('ECHOED'));
-        $cmdEcho->expects($this->never())
-                ->method('parseResponse');
+        $cmdEcho
+            ->expects($this->never())
+            ->method('parseResponse');
 
         $connection = $this->createConnection();
         $connection->writeRequest($cmdEcho);
@@ -302,18 +316,26 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testIsAbleToWriteMultipleCommandsAndReadThemBackForPipelining()
+    public function testIsAbleToWriteMultipleCommandsAndReadThemBackForPipelining(): void
     {
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
 
-        $cmdPing = $this->getMock($profile->getCommandClass('ping'), array('parseResponse'));
-        $cmdPing->expects($this->never())
-                ->method('parseResponse');
+        /** @var CommandInterface|MockObject */
+        $cmdPing = $this->getMockBuilder($commands->getCommandClass('ping'))
+            ->onlyMethods(array('parseResponse'))
+            ->getMock();
+        $cmdPing
+            ->expects($this->never())
+            ->method('parseResponse');
 
-        $cmdEcho = $this->getMock($profile->getCommandClass('echo'), array('parseResponse'));
+        /** @var CommandInterface|MockObject */
+        $cmdEcho = $this->getMockBuilder($commands->getCommandClass('echo'))
+            ->onlyMethods(array('parseResponse'))
+            ->getMock();
         $cmdEcho->setArguments(array('ECHOED'));
-        $cmdEcho->expects($this->never())
-                ->method('parseResponse');
+        $cmdEcho
+            ->expects($this->never())
+            ->method('parseResponse');
 
         $connection = $this->createConnection();
 
@@ -327,19 +349,28 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testSendsInitializationCommandsOnConnection()
+    public function testSendsInitializationCommandsOnConnection(): void
     {
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
 
-        $cmdPing = $this->getMock($profile->getCommandClass('ping'), array('getArguments'));
-        $cmdPing->expects($this->once())
-                ->method('getArguments')
-                ->will($this->returnValue(array()));
+        /** @var CommandInterface|MockObject */
+        $cmdPing = $this->getMockBuilder($commands->getCommandClass('ping'))
+            ->onlyMethods(array('getArguments'))
+            ->getMock();
+        $cmdPing
+            ->expects($this->once())
+            ->method('getArguments')
+            ->willReturn(array());
 
-        $cmdEcho = $this->getMock($profile->getCommandClass('echo'), array('getArguments'));
-        $cmdEcho->expects($this->once())
-                ->method('getArguments')
-                ->will($this->returnValue(array('ECHOED')));
+        /** @var CommandInterface|MockObject */
+        $cmdEcho = $this->getMockBuilder($commands->getCommandClass('echo'))
+            ->onlyMethods(array('getArguments'))
+            ->getMock();
+        $cmdEcho->setArguments(array('ECHOED'));
+        $cmdEcho
+            ->expects($this->once())
+            ->method('getArguments')
+            ->willReturn(array('ECHOED'));
 
         $connection = $this->createConnection();
         $connection->addConnectCommand($cmdPing);
@@ -351,19 +382,19 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testReadsStatusResponses()
+    public function testReadsStatusResponses(): void
     {
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
         $connection = $this->createConnection(true);
 
-        $connection->writeRequest($profile->createCommand('set', array('foo', 'bar')));
+        $connection->writeRequest($commands->create('set', array('foo', 'bar')));
         $this->assertInstanceOf('Predis\Response\Status', $connection->read());
 
-        $connection->writeRequest($profile->createCommand('ping'));
+        $connection->writeRequest($commands->create('ping'));
         $this->assertInstanceOf('Predis\Response\Status', $connection->read());
 
-        $connection->writeRequest($profile->createCommand('multi'));
-        $connection->writeRequest($profile->createCommand('ping'));
+        $connection->writeRequest($commands->create('multi'));
+        $connection->writeRequest($commands->create('ping'));
         $this->assertInstanceOf('Predis\Response\Status', $connection->read());
         $this->assertInstanceOf('Predis\Response\Status', $connection->read());
     }
@@ -371,30 +402,30 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testReadsBulkResponses()
+    public function testReadsBulkResponses(): void
     {
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
         $connection = $this->createConnection(true);
 
-        $connection->executeCommand($profile->createCommand('set', array('foo', 'bar')));
+        $connection->executeCommand($commands->create('set', array('foo', 'bar')));
 
-        $connection->writeRequest($profile->createCommand('get', array('foo')));
+        $connection->writeRequest($commands->create('get', array('foo')));
         $this->assertSame('bar', $connection->read());
 
-        $connection->writeRequest($profile->createCommand('get', array('hoge')));
+        $connection->writeRequest($commands->create('get', array('hoge')));
         $this->assertNull($connection->read());
     }
 
     /**
      * @group connected
      */
-    public function testReadsIntegerResponses()
+    public function testReadsIntegerResponses(): void
     {
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
         $connection = $this->createConnection(true);
 
-        $connection->executeCommand($profile->createCommand('rpush', array('metavars', 'foo', 'hoge', 'lol')));
-        $connection->writeRequest($profile->createCommand('llen', array('metavars')));
+        $connection->executeCommand($commands->create('rpush', array('metavars', 'foo', 'hoge', 'lol')));
+        $connection->writeRequest($commands->create('llen', array('metavars')));
 
         $this->assertSame(3, $connection->read());
     }
@@ -402,28 +433,30 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      */
-    public function testReadsErrorResponsesAsResponseErrorObjects()
+    public function testReadsErrorResponsesAsResponseErrorObjects(): void
     {
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
         $connection = $this->createConnection(true);
 
-        $connection->executeCommand($profile->createCommand('set', array('foo', 'bar')));
-        $connection->writeRequest($profile->createCommand('rpush', array('foo', 'baz')));
+        $connection->executeCommand($commands->create('set', array('foo', 'bar')));
+        $connection->writeRequest($commands->create('rpush', array('foo', 'baz')));
 
         $this->assertInstanceOf('Predis\Response\Error', $error = $connection->read());
-        $this->assertRegExp('/[ERR|WRONGTYPE] Operation against a key holding the wrong kind of value/', $error->getMessage());
+        $this->assertMatchesRegularExpression(
+            '/[ERR|WRONGTYPE] Operation against a key holding the wrong kind of value/', $error->getMessage()
+        );
     }
 
     /**
      * @group connected
      */
-    public function testReadsMultibulkResponsesAsArrays()
+    public function testReadsMultibulkResponsesAsArrays(): void
     {
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
         $connection = $this->createConnection(true);
 
-        $connection->executeCommand($profile->createCommand('rpush', array('metavars', 'foo', 'hoge', 'lol')));
-        $connection->writeRequest($profile->createCommand('lrange', array('metavars', 0, -1)));
+        $connection->executeCommand($commands->create('rpush', array('metavars', 'foo', 'hoge', 'lol')));
+        $connection->writeRequest($commands->create('lrange', array('metavars', 0, -1)));
 
         $this->assertSame(array('foo', 'hoge', 'lol'), $connection->read());
     }
@@ -431,22 +464,15 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      * @group slow
-     * @expectedException \Predis\Connection\ConnectionException
-     * @expectedExceptionMessageRegExp /.* \[tcp:\/\/169.254.10.10:6379\]/
      */
-    public function testThrowsExceptionOnConnectionTimeout()
+    public function testThrowsExceptionOnConnectionTimeout(): void
     {
-        // TODO: float timeouts for connect() under HHVM 3.6.6 are broken and,
-        // unfortunately, this is the version still being used by Travis CI.
-        if (defined('HHVM_VERSION') && version_compare(HHVM_VERSION, '3.6.6', '<=')) {
-            $timeout = 1;
-        } else {
-            $timeout = 0.1;
-        }
+        $this->expectException('Predis\Connection\ConnectionException');
+        $this->expectExceptionMessageMatches('/.* \[tcp:\/\/169.254.10.10:6379\]/');
 
         $connection = $this->createConnectionWithParams(array(
             'host' => '169.254.10.10',
-            'timeout' => $timeout,
+            'timeout' => 0.1,
         ), false);
 
         $connection->connect();
@@ -455,22 +481,15 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      * @group slow
-     * @expectedException \Predis\Connection\ConnectionException
-     * @expectedExceptionMessageRegExp /.* \[tcp:\/\/\[0:0:0:0:0:ffff:a9fe:a0a\]:6379\]/
      */
-    public function testThrowsExceptionOnConnectionTimeoutIPv6()
+    public function testThrowsExceptionOnConnectionTimeoutIPv6(): void
     {
-        // TODO: float timeouts for connect() under HHVM 3.6.6 are broken and,
-        // unfortunately, this is the version still being used by Travis CI.
-        if (defined('HHVM_VERSION') && version_compare(HHVM_VERSION, '3.6.6', '<=')) {
-            $timeout = 1;
-        } else {
-            $timeout = 0.1;
-        }
+        $this->expectException('Predis\Connection\ConnectionException');
+        $this->expectExceptionMessageMatches('/.* \[tcp:\/\/\[0:0:0:0:0:ffff:a9fe:a0a\]:6379\]/');
 
         $connection = $this->createConnectionWithParams(array(
             'host' => '0:0:0:0:0:ffff:a9fe:a0a',
-            'timeout' => $timeout,
+            'timeout' => 0.1,
         ), false);
 
         $connection->connect();
@@ -479,11 +498,12 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      * @group slow
-     * @expectedException \Predis\Connection\ConnectionException
-     * @expectedExceptionMessageRegExp /.* \[unix:\/tmp\/nonexistent\/redis\.sock]/
      */
-    public function testThrowsExceptionOnUnixDomainSocketNotFound()
+    public function testThrowsExceptionOnUnixDomainSocketNotFound(): void
     {
+        $this->expectException('Predis\Connection\ConnectionException');
+        $this->expectExceptionMessageMatches('/.* \[unix:\/tmp\/nonexistent\/redis\.sock]/');
+
         $connection = $this->createConnectionWithParams(array(
             'scheme' => 'unix',
             'path' => '/tmp/nonexistent/redis.sock',
@@ -495,30 +515,32 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * @group connected
      * @group slow
-     * @expectedException \Predis\Connection\ConnectionException
      */
-    public function testThrowsExceptionOnReadWriteTimeout()
+    public function testThrowsExceptionOnReadWriteTimeout(): void
     {
-        $profile = $this->getCurrentProfile();
+        $this->expectException('Predis\Connection\ConnectionException');
+
+        $commands = $this->getCommandFactory();
 
         $connection = $this->createConnectionWithParams(array(
             'read_write_timeout' => 0.5,
         ), true);
 
-        $connection->executeCommand($profile->createCommand('brpop', array('foo', 3)));
+        $connection->executeCommand($commands->create('brpop', array('foo', 3)));
     }
 
     /**
      * @medium
      * @group connected
-     * @expectedException \Predis\Protocol\ProtocolException
      */
-    public function testThrowsExceptionOnProtocolDesynchronizationErrors()
+    public function testThrowsExceptionOnProtocolDesynchronizationErrors(): void
     {
+        $this->expectException('Predis\Protocol\ProtocolException');
+
         $connection = $this->createConnection();
         $stream = $connection->getResource();
 
-        $connection->writeRequest($this->getCurrentProfile()->createCommand('ping'));
+        $connection->writeRequest($this->getCommandFactory()->create('ping'));
         fread($stream, 1);
 
         $connection->read();
@@ -529,63 +551,62 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     // ******************************************************************** //
 
     /**
+     * Returns the fully-qualified class name of the connection used for tests.
+     *
+     * @return string
+     */
+    protected abstract function getConnectionClass(): string;
+
+    /**
      * Returns a named array with the default connection parameters and their values.
      *
      * @return array Default connection parameters.
      */
-    protected function getDefaultParametersArray()
+    protected function getDefaultParametersArray(): array
     {
         return array(
             'scheme' => 'tcp',
-            'host' => REDIS_SERVER_HOST,
-            'port' => REDIS_SERVER_PORT,
-            'database' => REDIS_SERVER_DBNUM,
+            'host' => constant('REDIS_SERVER_HOST'),
+            'port' => constant('REDIS_SERVER_PORT'),
+            'database' => constant('REDIS_SERVER_DBNUM'),
             'read_write_timeout' => 2,
         );
     }
 
     /**
-     * Asserts that the connection is using a persistent resource stream.
+     * Asserts the connection is using a persistent resource stream.
      *
      * This assertion will trigger a connect() operation if the connection has
      * not been open yet.
      *
-     * @param NodeConnectionInterface $connection Connection instance.
+     * @param NodeConnectionInterface $connection Connection instance
      */
-    protected function assertPersistentConnection(NodeConnectionInterface $connection)
+    protected function assertPersistentConnection(NodeConnectionInterface $connection): void
     {
-        if (version_compare(PHP_VERSION, '5.4.0') < 0 || $this->isHHVM()) {
-            $this->markTestSkipped('This test does not currently work on HHVM.');
-        }
-
         $this->assertSame('persistent stream', get_resource_type($connection->getResource()));
     }
 
     /**
-     * Asserts that the connection is not using a persistent resource stream.
+     * Asserts the connection is not using a persistent resource stream.
      *
      * This assertion will trigger a connect() operation if the connection has
      * not been open yet.
      *
-     * @param NodeConnectionInterface $connection Connection instance.
+     * @param NodeConnectionInterface $connection Connection instance
      */
-    protected function assertNonPersistentConnection(NodeConnectionInterface $connection)
+    protected function assertNonPersistentConnection(NodeConnectionInterface $connection): void
     {
-        if (version_compare(PHP_VERSION, '5.4.0') < 0 || $this->isHHVM()) {
-            $this->markTestSkipped('This test does not currently work on HHVM.');
-        }
-
         $this->assertSame('stream', get_resource_type($connection->getResource()));
     }
 
     /**
      * Creates a new connection instance.
      *
-     * @param bool $initialize Push default initialization commands (SELECT and FLUSHDB).
+     * @param bool $initialize Push default initialization commands (SELECT and FLUSHDB)
      *
      * @return NodeConnectionInterface
      */
-    protected function createConnection($initialize = false)
+    protected function createConnection(bool $initialize = false): NodeConnectionInterface
     {
         return $this->createConnectionWithParams(array(), $initialize);
     }
@@ -593,15 +614,15 @@ abstract class PredisConnectionTestCase extends PredisTestCase
     /**
      * Creates a new connection instance using additional connection parameters.
      *
-     * @param mixed $parameters Additional connection parameters.
-     * @param bool  $initialize Push default initialization commands (SELECT and FLUSHDB).
+     * @param string|array|ParametersInterface $parameters Additional connection parameters
+     * @param bool                             $initialize Push default initialization commands (SELECT and FLUSHDB)
      *
      * @return NodeConnectionInterface
      */
-    protected function createConnectionWithParams($parameters, $initialize = false)
+    protected function createConnectionWithParams($parameters, $initialize = false): NodeConnectionInterface
     {
-        $class = static::CONNECTION_CLASS;
-        $profile = $this->getCurrentProfile();
+        $class = $this->getConnectionClass();
+        $commands = $this->getCommandFactory();
 
         if (!$parameters instanceof ParametersInterface) {
             $parameters = $this->getParameters($parameters);
@@ -611,11 +632,11 @@ abstract class PredisConnectionTestCase extends PredisTestCase
 
         if ($initialize) {
             $connection->addConnectCommand(
-                $profile->createCommand('select', array($parameters->database))
+                $commands->create('select', array($parameters->database))
             );
 
             $connection->addConnectCommand(
-                $profile->createCommand('flushdb')
+                $commands->create('flushdb')
             );
         }
 

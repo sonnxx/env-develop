@@ -11,10 +11,9 @@
 
 namespace Predis\Monitor;
 
+use PredisTestCase;
 use Predis\Client;
 use Predis\Monitor\Consumer as MonitorConsumer;
-use Predis\Profile;
-use PredisTestCase;
 
 /**
  * @group realm-monitor
@@ -23,30 +22,33 @@ class ConsumerTest extends PredisTestCase
 {
     /**
      * @group disconnected
-     * @expectedException \Predis\NotSupportedException
-     * @expectedExceptionMessage The current profile does not support 'MONITOR'.
      */
-    public function testMonitorConsumerRequireMonitorCommand()
+    public function testMonitorConsumerRequireMonitorCommand(): void
     {
-        $profile = $this->getMock('Predis\Profile\ProfileInterface');
-        $profile->expects($this->once())
-                ->method('supportsCommand')
-                ->with('MONITOR')
-                ->will($this->returnValue(false));
+        $this->expectException('Predis\NotSupportedException');
+        $this->expectExceptionMessage("'MONITOR' is not supported by the current command factory.");
 
-        $client = new Client(null, array('profile' => $profile));
+        $commands = $this->getMockBuilder('Predis\Command\FactoryInterface')->getMock();
+        $commands
+            ->expects($this->once())
+            ->method('supports')
+            ->with('MONITOR')
+            ->willReturn(false);
+
+        $client = new Client(null, array('commands' => $commands));
 
         new MonitorConsumer($client);
     }
 
     /**
      * @group disconnected
-     * @expectedException \Predis\NotSupportedException
-     * @expectedExceptionMessage Cannot initialize a monitor consumer over aggregate connections.
      */
-    public function testMonitorConsumerDoesNotWorkOnClusters()
+    public function testMonitorConsumerDoesNotWorkOnClusters(): void
     {
-        $cluster = $this->getMock('Predis\Connection\Aggregate\ClusterInterface');
+        $this->expectException('Predis\NotSupportedException');
+        $this->expectExceptionMessage('Cannot initialize a monitor consumer over aggregate connections');
+
+        $cluster = $this->getMockBuilder('Predis\Connection\AggregateConnectionInterface')->getMock();
         $client = new Client($cluster);
 
         new MonitorConsumer($client);
@@ -55,20 +57,25 @@ class ConsumerTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testConstructorStartsConsumer()
+    public function testConstructorStartsConsumer(): void
     {
-        $cmdMonitor = Profile\Factory::getDefault()->createCommand('monitor');
+        $cmdMonitor = $this->getCommandFactory()->create('monitor');
+        $connection = $this->getMockBuilder('Predis\Connection\NodeConnectionInterface')->getMock();
 
-        $connection = $this->getMock('Predis\Connection\NodeConnectionInterface');
-
-        $client = $this->getMock('Predis\Client', array('createCommand', 'executeCommand'), array($connection));
-        $client->expects($this->once())
-               ->method('createCommand')
-               ->with('MONITOR', array())
-               ->will($this->returnValue($cmdMonitor));
-        $client->expects($this->once())
-               ->method('executeCommand')
-               ->with($cmdMonitor);
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('createCommand', 'executeCommand'))
+            ->setConstructorArgs(array($connection))
+            ->getMock();
+        $client
+            ->expects($this->once())
+            ->method('createCommand')
+            ->with('MONITOR', array())
+            ->willReturn($cmdMonitor);
+        $client
+            ->expects($this->once())
+            ->method('executeCommand')
+            ->with($cmdMonitor);
 
         new MonitorConsumer($client);
     }
@@ -80,47 +87,63 @@ class ConsumerTest extends PredisTestCase
      *       the reason is probably that the GC invokes __destruct() on monitor
      *       thus calling disconnect() a second time at the end of the test.
      */
-    public function testStoppingConsumerClosesConnection()
+    public function testStoppingConsumerClosesConnection(): void
     {
-        $connection = $this->getMock('Predis\Connection\NodeConnectionInterface');
+        $connection = $this->getMockBuilder('Predis\Connection\NodeConnectionInterface')->getMock();
 
-        $client = $this->getMock('Predis\Client', array('disconnect'), array($connection));
-        $client->expects($this->exactly(2))->method('disconnect');
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('disconnect'))
+            ->setConstructorArgs(array($connection))
+            ->getMock();
+        $client
+            ->expects($this->exactly(2))
+            ->method('disconnect');
 
         $monitor = new MonitorConsumer($client);
+
         $monitor->stop();
     }
 
     /**
      * @group disconnected
      */
-    public function testGarbageCollectorRunStopsConsumer()
+    public function testGarbageCollectorRunStopsConsumer(): void
     {
-        $connection = $this->getMock('Predis\Connection\NodeConnectionInterface');
+        $connection = $this->getMockBuilder('Predis\Connection\NodeConnectionInterface')->getMock();
 
-        $client = $this->getMock('Predis\Client', array('disconnect'), array($connection));
-        $client->expects($this->once())->method('disconnect');
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('disconnect'))
+            ->setConstructorArgs(array($connection))
+            ->getMock();
+        $client
+            ->expects($this->once())
+            ->method('disconnect');
 
         $monitor = new MonitorConsumer($client);
+
         unset($monitor);
     }
 
     /**
      * @group disconnected
      */
-    public function testReadsMessageFromConnectionToRedis24()
+    public function testReadsMessageFromConnectionToRedis24(): void
     {
         $message = '1323367530.939137 (db 15) "MONITOR"';
 
-        $connection = $this->getMock('Predis\Connection\NodeConnectionInterface');
-        $connection->expects($this->once())
-                   ->method('read')
-                   ->will($this->returnValue($message));
+        $connection = $this->getMockBuilder('Predis\Connection\NodeConnectionInterface')->getMock();
+        $connection
+            ->expects($this->once())
+            ->method('read')
+            ->willReturn($message);
 
         $client = new Client($connection);
-        $monitor = new MonitorConsumer($client);
 
+        $monitor = new MonitorConsumer($client);
         $payload = $monitor->current();
+
         $this->assertSame(1323367530, (int) $payload->timestamp);
         $this->assertSame(15, $payload->database);
         $this->assertNull($payload->client);
@@ -131,19 +154,21 @@ class ConsumerTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testReadsMessageFromConnectionToRedis26()
+    public function testReadsMessageFromConnectionToRedis26(): void
     {
         $message = '1323367530.939137 [15 127.0.0.1:37265] "MONITOR"';
 
-        $connection = $this->getMock('Predis\Connection\NodeConnectionInterface');
-        $connection->expects($this->once())
-                   ->method('read')
-                   ->will($this->returnValue($message));
+        $connection = $this->getMockBuilder('Predis\Connection\NodeConnectionInterface')->getMock();
+        $connection
+            ->expects($this->once())
+            ->method('read')
+            ->willReturn($message);
 
         $client = new Client($connection);
-        $monitor = new MonitorConsumer($client);
 
+        $monitor = new MonitorConsumer($client);
         $payload = $monitor->current();
+
         $this->assertSame(1323367530, (int) $payload->timestamp);
         $this->assertSame(15, $payload->database);
         $this->assertSame('127.0.0.1:37265', $payload->client);
@@ -158,23 +183,22 @@ class ConsumerTest extends PredisTestCase
     /**
      * @group connected
      */
-    public function testMonitorAgainstRedisServer()
+    public function testMonitorAgainstRedisServer(): void
     {
         $parameters = array(
-            'host' => REDIS_SERVER_HOST,
-            'port' => REDIS_SERVER_PORT,
-            'database' => REDIS_SERVER_DBNUM,
+            'host' => constant('REDIS_SERVER_HOST'),
+            'port' => constant('REDIS_SERVER_PORT'),
+            'database' => constant('REDIS_SERVER_DBNUM'),
             // Prevents suite from handing on broken test
             'read_write_timeout' => 2,
         );
 
-        $options = array('profile' => REDIS_SERVER_VERSION);
         $echoed = array();
 
-        $producer = new Client($parameters, $options);
+        $producer = new Client($parameters);
         $producer->connect();
 
-        $consumer = new Client($parameters, $options);
+        $consumer = new Client($parameters);
         $consumer->connect();
 
         $monitor = new MonitorConsumer($consumer);

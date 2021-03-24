@@ -12,6 +12,7 @@
 namespace Predis\Command\Processor;
 
 use PredisTestCase;
+use Predis\Command\CommandInterface;
 
 /**
  *
@@ -21,7 +22,7 @@ class ProcessorChainTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testConstructor()
+    public function testConstructor(): void
     {
         $chain = new ProcessorChain();
 
@@ -32,11 +33,11 @@ class ProcessorChainTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testConstructorWithProcessorsArray()
+    public function testConstructorWithProcessorsArray(): void
     {
         $processors = array(
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
         );
 
         $chain = new ProcessorChain($processors);
@@ -47,11 +48,11 @@ class ProcessorChainTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testCountProcessors()
+    public function testCountProcessors(): void
     {
         $processors = array(
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
         );
 
         $chain = new ProcessorChain($processors);
@@ -62,11 +63,12 @@ class ProcessorChainTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testAddProcessors()
+    public function testAddProcessors(): void
     {
+        /** @var ProcessorInterface[] */
         $processors = array(
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
         );
 
         $chain = new ProcessorChain();
@@ -79,16 +81,18 @@ class ProcessorChainTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testAddMoreProcessors()
+    public function testAddMoreProcessors(): void
     {
+        /** @var ProcessorInterface */
         $processors1 = array(
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
         );
 
+        /** @var ProcessorInterface */
         $processors2 = array(
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
         );
 
         $chain = new ProcessorChain($processors1);
@@ -101,11 +105,12 @@ class ProcessorChainTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testRemoveProcessors()
+    public function testRemoveProcessors(): void
     {
+        /** @var ProcessorInterface */
         $processors = array(
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
         );
 
         $chain = new ProcessorChain($processors);
@@ -120,12 +125,14 @@ class ProcessorChainTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testRemoveProcessorNotInChain()
+    public function testRemoveProcessorNotInChain(): void
     {
-        $processor = $this->getMock('Predis\Command\Processor\ProcessorInterface');
+        /** @var ProcessorInterface */
+        $processor = $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock();
+
         $processors = array(
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
-            $this->getMock('Predis\Command\Processor\ProcessorInterface'),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
         );
 
         $chain = new ProcessorChain($processors);
@@ -137,9 +144,10 @@ class ProcessorChainTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testRemoveProcessorFromEmptyChain()
+    public function testRemoveProcessorFromEmptyChain(): void
     {
-        $processor = $this->getMock('Predis\Command\Processor\ProcessorInterface');
+        /** @var ProcessorInterface */
+        $processor = $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock();
 
         $chain = new ProcessorChain();
         $this->assertEmpty($chain->getProcessors());
@@ -151,15 +159,95 @@ class ProcessorChainTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testProcessChain()
+    public function testOffsetGet(): void
     {
-        $command = $this->getMock('Predis\Command\CommandInterface');
+        $processors = array(
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+        );
 
-        $processor1 = $this->getMock('Predis\Command\Processor\ProcessorInterface');
-        $processor1->expects($this->once())->method('process')->with($command);
+        $chain = new ProcessorChain($processors);
 
-        $processor2 = $this->getMock('Predis\Command\Processor\ProcessorInterface');
-        $processor2->expects($this->once())->method('process')->with($command);
+        $this->assertSame($processors[0], $chain[0]);
+        $this->assertSame($processors[1], $chain[1]);
+    }
+
+    /**
+     * @group disconnected
+     */
+    public function testOffsetIsset(): void
+    {
+        $processors = array(
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+        );
+
+        $chain = new ProcessorChain($processors);
+
+        $this->assertTrue(isset($chain[0]));
+        $this->assertTrue(isset($chain[1]));
+        $this->assertFalse(isset($chain[2]));
+    }
+
+    /**
+     * @group disconnected
+     */
+    public function testOffsetSet(): void
+    {
+        $processor = $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock();
+
+        $chain = new ProcessorChain();
+        $chain[0] = $processor;
+
+        $this->assertSame($processor, $chain[0]);
+    }
+
+    /**
+     * @group disconnected
+     */
+    public function testOffsetSetWithInvalidType(): void
+    {
+        $this->expectException('InvalidArgumentException');
+        $this->expectExceptionMessage('Processor chain accepts only instances of `Predis\Command\Processor\ProcessorInterface`');
+
+        $chain = new ProcessorChain();
+        $chain[0] = new \stdClass();
+    }
+
+    /**
+     * @group disconnected
+     */
+    public function testGetIterator(): void
+    {
+        $processors = array(
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+            $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock(),
+        );
+
+        $chain = new ProcessorChain($processors);
+
+        $this->assertSame($processors, iterator_to_array($chain->getIterator()));
+    }
+
+    /**
+     * @group disconnected
+     */
+    public function testProcessChain(): void
+    {
+        /** @var CommandInterface */
+        $command = $this->getMockBuilder('Predis\Command\CommandInterface')->getMock();
+
+        $processor1 = $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock();
+        $processor1
+            ->expects($this->once())
+            ->method('process')
+            ->with($command);
+
+        $processor2 = $this->getMockBuilder('Predis\Command\Processor\ProcessorInterface')->getMock();
+        $processor2
+            ->expects($this->once())
+            ->method('process')
+            ->with($command);
 
         $processors = array($processor1, $processor2);
 

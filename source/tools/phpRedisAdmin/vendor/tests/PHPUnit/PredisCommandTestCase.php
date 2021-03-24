@@ -9,11 +9,12 @@
  * file that was distributed with this source code.
  */
 
-namespace Predis\Command;
+namespace Predis\Command\Redis;
 
-use Predis\Client;
-use Predis\Profile;
 use PredisTestCase;
+use Predis\Client;
+use Predis\Command;
+use Predis\Command\CommandInterface;
 
 /**
  *
@@ -21,45 +22,45 @@ use PredisTestCase;
 abstract class PredisCommandTestCase extends PredisTestCase
 {
     /**
-     * Returns the expected command.
+     * Returns the expected command for tests.
      *
-     * @return CommandInterface|string Instance or FQN of the expected command.
+     * @return Command\CommandInterface|string Instance or FQCN of the expected command
      */
-    abstract protected function getExpectedCommand();
+    abstract protected function getExpectedCommand(): string;
 
     /**
-     * Returns the expected command ID.
+     * Returns the expected command ID for tests.
      *
      * @return string
      */
-    abstract protected function getExpectedId();
+    abstract protected function getExpectedId(): string;
 
     /**
      * Returns a new command instance.
      *
-     * @return CommandInterface
+     * @return Command\CommandInterface
      */
-    public function getCommand()
+    public function getCommand(): Command\CommandInterface
     {
         $command = $this->getExpectedCommand();
 
-        return $command instanceof CommandInterface ? $command : new $command();
+        return $command instanceof Command\CommandInterface ? $command : new $command();
     }
 
     /**
      * Returns a new client instance.
      *
-     * @param bool $flushdb Flush selected database before returning the client.
+     * @param bool $flushdb Flush selected database before returning the client
      *
      * @return Client
      */
-    public function getClient($flushdb = true)
+    public function getClient(bool $flushdb = true): Client
     {
-        $profile = $this->getProfile();
+        $commands = $this->getCommandFactory();
 
-        if (!$profile->supportsCommand($id = $this->getExpectedId())) {
+        if (!$commands->supports($id = $this->getExpectedId())) {
             $this->markTestSkipped(
-                "The profile {$profile->getVersion()} does not support command {$id}"
+                "The current command factory does not support command $id"
             );
         }
 
@@ -69,35 +70,35 @@ abstract class PredisCommandTestCase extends PredisTestCase
     }
 
     /**
-     * Returns wether the command is prefixable or not.
+     * Verifies if the command implements the prefixable interface.
      *
      * @return bool
      */
-    protected function isPrefixable()
+    protected function isPrefixable(): bool
     {
-        return $this->getCommand() instanceof PrefixableCommandInterface;
+        return $this->getCommand() instanceof Command\PrefixableCommandInterface;
     }
 
     /**
      * Returns a new command instance with the specified arguments.
      *
-     * @param ... List of arguments for the command.
+     * @param ... List of arguments for the command
      *
      * @return CommandInterface
      */
-    protected function getCommandWithArguments(/* arguments */)
+    protected function getCommandWithArguments(...$arguments): CommandInterface
     {
-        return $this->getCommandWithArgumentsArray(func_get_args());
+        return $this->getCommandWithArgumentsArray($arguments);
     }
 
     /**
      * Returns a new command instance with the specified arguments.
      *
-     * @param array $arguments Arguments for the command.
+     * @param array $arguments Arguments for the command
      *
      * @return CommandInterface
      */
-    protected function getCommandWithArgumentsArray(array $arguments)
+    protected function getCommandWithArgumentsArray(array $arguments): CommandInterface
     {
         $command = $this->getCommand();
         $command->setArguments($arguments);
@@ -108,7 +109,7 @@ abstract class PredisCommandTestCase extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testCommandId()
+    public function testCommandId(): void
     {
         $command = $this->getCommand();
 
@@ -119,7 +120,7 @@ abstract class PredisCommandTestCase extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testRawArguments()
+    public function testRawArguments(): void
     {
         $expected = array('1st', '2nd', '3rd', '4th');
 

@@ -11,6 +11,7 @@
 
 namespace Predis\Connection;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use Predis\Command\RawCommand;
 use Predis\Response\Error as ErrorResponse;
 
@@ -20,15 +21,22 @@ use Predis\Response\Error as ErrorResponse;
  */
 class PhpiredisSocketConnectionTest extends PredisConnectionTestCase
 {
-    const CONNECTION_CLASS = 'Predis\Connection\PhpiredisSocketConnection';
+    /**
+     * @inheritDoc
+     */
+    protected function getConnectionClass(): string
+    {
+        return 'Predis\Connection\PhpiredisSocketConnection';
+    }
 
     /**
      * @group disconnected
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Invalid scheme: 'tls'.
      */
-    public function testSupportsSchemeTls()
+    public function testSupportsSchemeTls(): void
     {
+        $this->expectException('InvalidArgumentException');
+        $this->expectExceptionMessage("Invalid scheme: 'tls'");
+
         $connection = $this->createConnectionWithParams(array('scheme' => 'tls'));
 
         $this->assertInstanceOf('Predis\Connection\NodeConnectionInterface', $connection);
@@ -36,11 +44,12 @@ class PhpiredisSocketConnectionTest extends PredisConnectionTestCase
 
     /**
      * @group disconnected
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Invalid scheme: 'rediss'.
      */
-    public function testSupportsSchemeRediss()
+    public function testSupportsSchemeRediss(): void
     {
+        $this->expectException('InvalidArgumentException');
+        $this->expectExceptionMessage("Invalid scheme: 'rediss'");
+
         $connection = $this->createConnectionWithParams(array('scheme' => 'rediss'));
 
         $this->assertInstanceOf('Predis\Connection\NodeConnectionInterface', $connection);
@@ -48,23 +57,26 @@ class PhpiredisSocketConnectionTest extends PredisConnectionTestCase
 
     /**
      * @group disconnected
-     * @expectedException \Predis\Connection\ConnectionException
-     * @expectedExceptionMessage `SELECT` failed: ERR invalid DB index [tcp://127.0.0.1:6379]
      */
-    public function testThrowsExceptionOnInitializationCommandFailure()
+    public function testThrowsExceptionOnInitializationCommandFailure(): void
     {
+        $this->expectException('Predis\Connection\ConnectionException');
+        $this->expectExceptionMessage("`SELECT` failed: ERR invalid DB index [tcp://127.0.0.1:6379]");
+
         $cmdSelect = RawCommand::create('SELECT', '1000');
 
-        $connection = $this->getMockBuilder(static::CONNECTION_CLASS)
-                           ->setMethods(array('executeCommand', 'createResource'))
-                           ->setConstructorArgs(array(new Parameters()))
-                           ->getMock();
-
-        $connection->method('executeCommand')
-                   ->with($cmdSelect)
-                   ->will($this->returnValue(
-                       new ErrorResponse('ERR invalid DB index')
-                   ));
+        /** @var NodeConnectionInterface|MockObject */
+        $connection = $this
+            ->getMockBuilder($this->getConnectionClass())
+            ->onlyMethods(array('executeCommand', 'createResource'))
+            ->setConstructorArgs(array(new Parameters()))
+            ->getMock();
+        $connection
+            ->method('executeCommand')
+            ->with($cmdSelect)
+            ->willReturn(
+                new ErrorResponse('ERR invalid DB index')
+            );
 
         $connection->method('createResource');
 
@@ -78,11 +90,12 @@ class PhpiredisSocketConnectionTest extends PredisConnectionTestCase
 
     /**
      * @group connected
-     * @expectedException \Predis\Connection\ConnectionException
-     * @expectedExceptionMessage Cannot resolve the address of 'bogus.tld'.
      */
-    public function testThrowsExceptionOnUnresolvableHostname()
+    public function testThrowsExceptionOnUnresolvableHostname(): void
     {
+        $this->expectException('Predis\Connection\ConnectionException');
+        $this->expectExceptionMessage("Cannot resolve the address of 'bogus.tld'");
+
         $connection = $this->createConnectionWithParams(array('host' => 'bogus.tld'));
         $connection->connect();
     }
@@ -90,14 +103,15 @@ class PhpiredisSocketConnectionTest extends PredisConnectionTestCase
     /**
      * @medium
      * @group connected
-     * @expectedException \Predis\Protocol\ProtocolException
      */
-    public function testThrowsExceptionOnProtocolDesynchronizationErrors()
+    public function testThrowsExceptionOnProtocolDesynchronizationErrors(): void
     {
+        $this->expectException('Predis\Protocol\ProtocolException');
+
         $connection = $this->createConnection();
         $socket = $connection->getResource();
 
-        $connection->writeRequest($this->getCurrentProfile()->createCommand('ping'));
+        $connection->writeRequest($this->getCommandFactory()->create('ping'));
         socket_read($socket, 1);
 
         $connection->read();

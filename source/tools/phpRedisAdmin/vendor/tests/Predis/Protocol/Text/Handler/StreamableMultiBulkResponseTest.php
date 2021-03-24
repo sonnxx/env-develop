@@ -21,31 +21,38 @@ class StreamableMultiBulkResponseTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testOk()
+    public function testOk(): void
     {
+        $connection = $this->getMockConnectionOfType('Predis\Connection\CompositeConnectionInterface');
+        $connection
+            ->expects($this->never())
+            ->method('readLine');
+        $connection
+            ->expects($this->never())
+            ->method('readBuffer');
+
         $handler = new Handler\StreamableMultiBulkResponse();
-
-        $connection = $this->getMock('Predis\Connection\CompositeConnectionInterface');
-
-        $connection->expects($this->never())->method('readLine');
-        $connection->expects($this->never())->method('readBuffer');
 
         $this->assertInstanceOf('Predis\Response\Iterator\MultiBulk', $handler->handle($connection, '1'));
     }
 
     /**
      * @group disconnected
-     * @expectedException \Predis\Protocol\ProtocolException
-     * @expectedExceptionMessage Cannot parse 'invalid' as a valid length for a multi-bulk response.
      */
-    public function testInvalid()
+    public function testInvalid(): void
     {
+        $this->expectException('Predis\Protocol\ProtocolException');
+        $this->expectExceptionMessage("Cannot parse 'invalid' as a valid length for a multi-bulk response [tcp://127.0.0.1:6379]");
+
+        $connection = $this->getMockConnectionOfType('Predis\Connection\CompositeConnectionInterface', 'tcp://127.0.0.1:6379');
+        $connection
+            ->expects($this->never())
+            ->method('readLine');
+        $connection
+            ->expects($this->never())
+            ->method('readBuffer');
+
         $handler = new Handler\StreamableMultiBulkResponse();
-
-        $connection = $this->getMock('Predis\Connection\CompositeConnectionInterface');
-
-        $connection->expects($this->never())->method('readLine');
-        $connection->expects($this->never())->method('readBuffer');
 
         $handler->handle($connection, 'invalid');
     }

@@ -11,7 +11,6 @@
 
 namespace Predis\Collection\Iterator;
 
-use Predis\Profile;
 use PredisTestCase;
 
 /**
@@ -21,16 +20,24 @@ class HashKeyTest extends PredisTestCase
 {
     /**
      * @group disconnected
-     * @expectedException \Predis\NotSupportedException
-     * @expectedExceptionMessage The current profile does not support 'HSCAN'.
      */
-    public function testThrowsExceptionOnInvalidProfile()
+    public function testThrowsExceptionOnMissingCommand(): void
     {
-        $client = $this->getMock('Predis\ClientInterface');
+        $this->expectException('Predis\NotSupportedException');
+        $this->expectExceptionMessage("'HSCAN' is not supported by the current command factory.");
 
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.0')));
+        $commands = $this->getMockBuilder('Predis\Command\FactoryInterface')->getMock();
+        $commands
+            ->expects($this->any())
+            ->method('supports')
+            ->willReturn(false);
+
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\ClientInterface')->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($commands);
 
         new HashKey($client, 'key:hash');
     }
@@ -38,17 +45,24 @@ class HashKeyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testIterationWithNoResults()
+    public function testIterationWithNoResults(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->once())
-               ->method('hscan')
-               ->with('key:hash', 0, array())
-               ->will($this->returnValue(array(0, array())));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->once())
+            ->method('hscan')
+            ->with('key:hash', 0, array())
+            ->willReturn(
+                array(0, array(),
+            ));
 
         $iterator = new HashKey($client, 'key:hash');
 
@@ -57,23 +71,28 @@ class HashKeyTest extends PredisTestCase
     }
 
     /**
-     * @link https://github.com/nrk/predis/pull/330
-     * @link https://github.com/nrk/predis/issues/331
+     * @see https://github.com/predis/predis/pull/330
+     * @see https://github.com/predis/predis/issues/331
      * @group disconnected
      */
-    public function testIterationWithIntegerFields()
+    public function testIterationWithIntegerFields(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->once())
-               ->method('hscan')
-               ->with('key:hash', 0, array())
-               ->will($this->returnValue(array(0, array(
-                    1 => 'a', 2 => 'b', 3 => 100, 'foo' => 'bar',
-               ))));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->once())
+            ->method('hscan')
+            ->with('key:hash', 0, array())
+            ->willReturn(
+                array(0, array(1 => 'a', 2 => 'b', 3 => 100, 'foo' => 'bar'))
+            );
 
         $iterator = new HashKey($client, 'key:hash');
 
@@ -104,19 +123,24 @@ class HashKeyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testIterationOnSingleFetch()
+    public function testIterationOnSingleFetch(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->once())
-               ->method('hscan')
-               ->with('key:hash', 0, array())
-               ->will($this->returnValue(array(0, array(
-                    'field:1st' => 'value:1st', 'field:2nd' => 'value:2nd', 'field:3rd' => 'value:3rd',
-               ))));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->once())
+            ->method('hscan')
+            ->with('key:hash', 0, array())
+            ->willReturn(
+                array(0, array('field:1st' => 'value:1st', 'field:2nd' => 'value:2nd', 'field:3rd' => 'value:3rd'))
+            );
 
         $iterator = new HashKey($client, 'key:hash');
 
@@ -142,25 +166,28 @@ class HashKeyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testIterationOnMultipleFetches()
+    public function testIterationOnMultipleFetches(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->at(1))
-               ->method('hscan')
-               ->with('key:hash', 0, array())
-               ->will($this->returnValue(array(2, array(
-                    'field:1st' => 'value:1st', 'field:2nd' => 'value:2nd',
-               ))));
-        $client->expects($this->at(2))
-               ->method('hscan')
-               ->with('key:hash', 2, array())
-               ->will($this->returnValue(array(0, array(
-                    'field:3rd' => 'value:3rd',
-               ))));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->exactly(2))
+            ->method('hscan')
+            ->withConsecutive(
+                array('key:hash', 0, array()),
+                array('key:hash', 2, array())
+            )
+            ->willReturnOnConsecutiveCalls(
+                array(2, array('field:1st' => 'value:1st', 'field:2nd' => 'value:2nd')),
+                array(0, array('field:3rd' => 'value:3rd'))
+            );
 
         $iterator = new HashKey($client, 'key:hash');
 
@@ -186,23 +213,28 @@ class HashKeyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testIterationOnMultipleFetchesAndHoleInFirstFetch()
+    public function testIterationOnMultipleFetchesAndHoleInFirstFetch(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->at(1))
-               ->method('hscan')
-               ->with('key:hash', 0, array())
-               ->will($this->returnValue(array(4, array())));
-        $client->expects($this->at(2))
-               ->method('hscan')
-               ->with('key:hash', 4, array())
-               ->will($this->returnValue(array(0, array(
-                    'field:1st' => 'value:1st', 'field:2nd' => 'value:2nd',
-               ))));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->exactly(2))
+            ->method('hscan')
+            ->withConsecutive(
+                array('key:hash', 0, array()),
+                array('key:hash', 4, array())
+            )
+            ->willReturnOnConsecutiveCalls(
+                array(4, array()),
+                array(0, array('field:1st' => 'value:1st', 'field:2nd' => 'value:2nd'))
+            );
 
         $iterator = new HashKey($client, 'key:hash');
 
@@ -223,29 +255,30 @@ class HashKeyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testIterationOnMultipleFetchesAndHoleInMidFetch()
+    public function testIterationOnMultipleFetchesAndHoleInMidFetch(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->at(1))
-               ->method('hscan')
-               ->with('key:hash', 0, array())
-               ->will($this->returnValue(array(2, array(
-                    'field:1st' => 'value:1st', 'field:2nd' => 'value:2nd',
-               ))));
-        $client->expects($this->at(2))
-               ->method('hscan')
-               ->with('key:hash', 2, array())
-               ->will($this->returnValue(array(5, array())));
-        $client->expects($this->at(3))
-               ->method('hscan')
-               ->with('key:hash', 5, array())
-               ->will($this->returnValue(array(0, array(
-                    'field:3rd' => 'value:3rd',
-               ))));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->exactly(3))
+            ->method('hscan')
+            ->withConsecutive(
+                array('key:hash', 0, array()),
+                array('key:hash', 2, array()),
+                array('key:hash', 5, array())
+            )
+            ->willReturnOnConsecutiveCalls(
+                array(2, array('field:1st' => 'value:1st', 'field:2nd' => 'value:2nd')),
+                array(5, array()),
+                array(0, array('field:3rd' => 'value:3rd'))
+            );
 
         $iterator = new HashKey($client, 'key:hash');
 
@@ -271,19 +304,28 @@ class HashKeyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testIterationWithOptionMatch()
+    public function testIterationWithOptionMatch(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->at(1))
-               ->method('hscan')
-               ->with('key:hash', 0, array('MATCH' => 'field:*'))
-               ->will($this->returnValue(array(2, array(
-                    'field:1st' => 'value:1st', 'field:2nd' => 'value:2nd',
-               ))));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->exactly(2))
+            ->method('hscan')
+            ->withConsecutive(
+                array('key:hash', 0, array('MATCH' => 'field:*')),
+                array('key:hash', 2, array('MATCH' => 'field:*'))
+            )
+            ->willReturn(
+                array(2, array('field:1st' => 'value:1st', 'field:2nd' => 'value:2nd')),
+                array(0, array())
+            );
 
         $iterator = new HashKey($client, 'key:hash', 'field:*');
 
@@ -304,25 +346,28 @@ class HashKeyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testIterationWithOptionMatchOnMultipleFetches()
+    public function testIterationWithOptionMatchOnMultipleFetches(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->at(1))
-               ->method('hscan')
-               ->with('key:hash', 0, array('MATCH' => 'field:*'))
-               ->will($this->returnValue(array(1, array(
-                    'field:1st' => 'value:1st',
-                ))));
-        $client->expects($this->at(2))
-               ->method('hscan')
-               ->with('key:hash', 1, array('MATCH' => 'field:*'))
-               ->will($this->returnValue(array(0, array(
-                    'field:2nd' => 'value:2nd',
-                ))));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->exactly(2))
+            ->method('hscan')
+            ->withConsecutive(
+                array('key:hash', 0, array('MATCH' => 'field:*')),
+                array('key:hash', 1, array('MATCH' => 'field:*'))
+            )
+            ->willReturn(
+                array(1, array('field:1st' => 'value:1st')),
+                array(0, array('field:2nd' => 'value:2nd'))
+            );
 
         $iterator = new HashKey($client, 'key:hash', 'field:*');
 
@@ -343,19 +388,26 @@ class HashKeyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testIterationWithOptionCount()
+    public function testIterationWithOptionCount(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->at(1))
-               ->method('hscan')
-               ->with('key:hash', 0, array('COUNT' => 2))
-               ->will($this->returnValue(array(0, array(
-                    'field:1st' => 'value:1st', 'field:2nd' => 'value:2nd',
-               ))));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->once())
+            ->method('hscan')
+            ->withConsecutive(
+                array('key:hash', 0, array('COUNT' => 2))
+            )
+            ->willReturn(
+                array(0, array('field:1st' => 'value:1st', 'field:2nd' => 'value:2nd'))
+            );
 
         $iterator = new HashKey($client, 'key:hash', null, 2);
 
@@ -376,25 +428,28 @@ class HashKeyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testIterationWithOptionCountOnMultipleFetches()
+    public function testIterationWithOptionCountOnMultipleFetches(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->at(1))
-               ->method('hscan')
-               ->with('key:hash', 0, array('COUNT' => 1))
-               ->will($this->returnValue(array(1, array(
-                    'field:1st' => 'value:1st',
-                ))));
-        $client->expects($this->at(2))
-               ->method('hscan')
-               ->with('key:hash', 1, array('COUNT' => 1))
-               ->will($this->returnValue(array(0, array(
-                    'field:2nd' => 'value:2nd',
-                ))));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->exactly(2))
+            ->method('hscan')
+            ->withConsecutive(
+                array('key:hash', 0, array('COUNT' => 1)),
+                array('key:hash', 1, array('COUNT' => 1))
+            )
+            ->willReturnOnConsecutiveCalls(
+                array(1, array('field:1st' => 'value:1st')),
+                array(0, array('field:2nd' => 'value:2nd'))
+            );
 
         $iterator = new HashKey($client, 'key:hash', null, 1);
 
@@ -415,19 +470,26 @@ class HashKeyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testIterationWithOptionsMatchAndCount()
+    public function testIterationWithOptionsMatchAndCount(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->at(1))
-               ->method('hscan')
-               ->with('key:hash', 0, array('MATCH' => 'field:*', 'COUNT' => 2))
-               ->will($this->returnValue(array(0, array(
-                    'field:1st' => 'value:1st', 'field:2nd' => 'value:2nd',
-               ))));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->once(1))
+            ->method('hscan')
+            ->withConsecutive(
+                array('key:hash', 0, array('MATCH' => 'field:*', 'COUNT' => 2))
+            )
+            ->willReturnOnConsecutiveCalls(
+                array(0, array('field:1st' => 'value:1st', 'field:2nd' => 'value:2nd'))
+            );
 
         $iterator = new HashKey($client, 'key:hash', 'field:*', 2);
 
@@ -448,25 +510,28 @@ class HashKeyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testIterationWithOptionsMatchAndCountOnMultipleFetches()
+    public function testIterationWithOptionsMatchAndCountOnMultipleFetches(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->at(1))
-               ->method('hscan')
-               ->with('key:hash', 0, array('MATCH' => 'field:*', 'COUNT' => 1))
-               ->will($this->returnValue(array(1, array(
-                    'field:1st' => 'value:1st',
-                ))));
-        $client->expects($this->at(2))
-               ->method('hscan')
-               ->with('key:hash', 1, array('MATCH' => 'field:*', 'COUNT' => 1))
-               ->will($this->returnValue(array(0, array(
-                    'field:2nd' => 'value:2nd',
-                ))));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->exactly(2))
+            ->method('hscan')
+            ->withConsecutive(
+                array('key:hash', 0, array('MATCH' => 'field:*', 'COUNT' => 1)),
+                array('key:hash', 1, array('MATCH' => 'field:*', 'COUNT' => 1))
+            )
+            ->willReturnOnConsecutiveCalls(
+                array(1, array('field:1st' => 'value:1st')),
+                array(0, array('field:2nd' => 'value:2nd'))
+            );
 
         $iterator = new HashKey($client, 'key:hash', 'field:*', 1);
 
@@ -487,19 +552,24 @@ class HashKeyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testIterationRewindable()
+    public function testIterationRewindable(): void
     {
-        $client = $this->getMock('Predis\Client', array('getProfile', 'hscan'));
-
-        $client->expects($this->any())
-               ->method('getProfile')
-               ->will($this->returnValue(Profile\Factory::get('2.8')));
-        $client->expects($this->exactly(2))
-               ->method('hscan')
-               ->with('key:hash', 0, array())
-               ->will($this->returnValue(array(0, array(
-                    'field:1st' => 'value:1st', 'field:2nd' => 'value:2nd',
-               ))));
+        /** @var \Predis\ClientInterface */
+        $client = $this->getMockBuilder('Predis\Client')
+            ->onlyMethods(array('getCommandFactory'))
+            ->addMethods(array('hscan'))
+            ->getMock();
+        $client
+            ->expects($this->any())
+            ->method('getCommandFactory')
+            ->willReturn($this->getCommandFactory());
+        $client
+            ->expects($this->exactly(2))
+            ->method('hscan')
+            ->with('key:hash', 0, array())
+            ->willReturn(
+                array(0, array('field:1st' => 'value:1st', 'field:2nd' => 'value:2nd'))
+            );
 
         $iterator = new HashKey($client, 'key:hash');
 

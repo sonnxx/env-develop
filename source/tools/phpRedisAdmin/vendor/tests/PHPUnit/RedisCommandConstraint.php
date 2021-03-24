@@ -13,18 +13,18 @@ use Predis\Command\CommandInterface;
 use SebastianBergmann\Exporter\Exporter;
 
 /**
- * Constraint that verifies a redis command.
+ * PHPUnit constraint to verify that a Redis command matches certain conditions.
  */
-class RedisCommandConstraint extends \PHPUnit_Framework_Constraint
+class RedisCommandConstraint extends \PHPUnit\Framework\Constraint\Constraint
 {
     protected $commandID;
     protected $arguments;
 
     /**
-     * @param string|CommandInterface $command   Expected command ID or instance.
-     * @param array                   $arguments Expected command arguments.
+     * @param string|CommandInterface $command   Expected command instance or command ID
+     * @param ?array                  $arguments Expected command arguments
      */
-    public function __construct($command = null, array $arguments = null)
+    public function __construct($command, ?array $arguments = null)
     {
         if ($command instanceof CommandInterface) {
             $this->commandID = strtoupper($command->getId());
@@ -38,7 +38,7 @@ class RedisCommandConstraint extends \PHPUnit_Framework_Constraint
     /**
      * {@inheritdoc}
      */
-    public function matches($other)
+    public function matches($other): bool
     {
         if (!$other instanceof CommandInterface) {
             return false;
@@ -68,10 +68,9 @@ class RedisCommandConstraint extends \PHPUnit_Framework_Constraint
     /**
      * {@inheritdoc}
      *
-     * @todo Improve output using diff when expected and actual arguments of a
-     *       command do not match.
+     * @todo Improve output using diff when expected and actual do not match.
      */
-    public function toString()
+    public function toString(): string
     {
         $exporter = new Exporter();
         $string = 'is a Redis command';
@@ -91,7 +90,7 @@ class RedisCommandConstraint extends \PHPUnit_Framework_Constraint
     /**
      * {@inheritdoc}
      */
-    protected function failureDescription($other)
+    protected function failureDescription($other): string
     {
         $string = is_object($other) ? get_class($other) : $other;
 

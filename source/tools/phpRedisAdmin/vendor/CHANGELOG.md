@@ -1,4 +1,178 @@
-v1.1.2 (2017-xx-xx)
+v2.0.0 (202x-xx-xx)
+================================================================================
+
+- Accepted values for some client options have changed, this is the new list of
+  accepted values:
+
+  - `aggregate`: callable returning an aggregate connection.
+  - `cluster`: string value (`predis`, `redis`), callable returning an aggregate
+    connection.
+  - `replication`: string value (`predis`, `sentinel`), callable returning an
+     aggregate connection.
+  - `commands`: command factory, named array mapping command IDs to PHP classes,
+    callable returning a command factory or a named array.
+  - `connections`: connection factory, callable object returning a connection
+    factory, named array mapping URI schemes to PHP classes, string identifying
+    a supported combination of configurations for the connection factory.
+  - `prefix`: string value, command processor, callable.
+  - `exceptions`: boolean.
+
+  Note that both the `cluster` and `replication` options now return a closure
+  acting as initializer instead of an aggregate connection instance.
+
+- The `connections` client option now accepts certain string values identifying
+  certain combinations of configurations for the connection factory. Currenlty
+  this is used to provide a short way to configure Predis to load our phpiredis
+  based connection backends simply, accepted values are:
+
+  - `phpiredis-stream` maps `Phpiredis\Connection\PhpiredisStreamConnection` to
+    `tcp`, `redis`, `unix` URI schemes.
+  - `phpiredis-socket` maps `Phpiredis\Connection\PhpiredisSocketConnection` to
+    `tcp`, `redis`, `unix` URI schemes.
+  - `phpiredis-stream` is simply an alias of `phpiredis-stream`.
+
+- Added the new `Predis\Cluster\Hash\PhpiredisCRC16` class using ext-phpiredis
+  to speed-up the generation of the CRC16 hash of keys for redis-cluster. Predis
+  automatically uses this class when ext-phpiredis is loaded, but it is possible
+  to configure the hash generator using the new `crc16` client option (accepted
+  values `predis`, `phpiredis` or an hash generator instance).
+
+- Replication backends now use the `role` parameter instead of `alias` in order
+  to distinguish the role of a connection. Accepted values are `master`, `slave`
+  and, for redis-sentinel, `sentinel`. This led to a redesign of how connections
+  can be retrieved from replication backends: the method getConnectionById() now
+  retrieves a connection only by its ID (ip:port pair), to get a connection by
+  its alias there is the new method getConnectionByAlias(). This method is not
+  supported by the redis-sentinel backend due to its dynamic nature (connections
+  are retrieved and initialized at runtime from sentinels) but it is possible to
+  get a single connection from the pool by using its ID. It is also possible to
+  retrive a connection by role using the method getConnectionByRole().
+
+- The concept of connection ID (ip:port pair) and connection alias (the `alias`
+  parameter) in `Predis\Connection\Cluster\PredisCluster` has been separated.
+  This change does not affect distribution and it is safe for existing clusters.
+
+- Client option classes now live in the `Predis\Configuration\Option` namespace.
+
+- Classes for Redis commands have been moved into the new `Predis\Command\Redis`
+  namespace and each class name mirrors the respective Redis command ID.
+
+- The concept of server profiles is gone, the library now uses a single command
+  factory to create instances of commands classes. The `profile` option has been
+  replaced by the `commands` option accepting `Predis\Command\FactoryInterface`
+  to customize the underlying command factory. The default command factory class
+  used by Predis is `Predis\Command\RedisFactory` and it still allows developers
+  to define or override commands with their own implementations. In addition to
+  that, `Predis\Command\RedisFactory` relies on a convention-over-configuration
+  approach by looking for a suitable class with the same name as the command ID
+  in the `Predis\Command\Redis` when the internal class map does not contain a
+  class associated.
+
+- The method `Predis\Client::getClientFor($connectionID)` has been replaced by
+  `getClientBy($selector, $value, $callable = null)` which is more flexible as
+  it is not limited to picking a connection from the underlying replication or
+  cluster backend by ID, but allows users to specify a `$selector` that can be
+  either `id` (the old behavior), `key`, `slot` or `command`. The client uses
+  duck-typing instead of type-checking to verify that the underlying connection
+  implements a method that matches the specified selector which means that some
+  selectors may not be available to all kinds of connection backends.
+
+- The method `Predis\Client::getConnectionById($connectionID)` has been removed.
+
+- Changed the signature for the constructor of `Predis\Command\RawCommand`.
+
+- The `Predis\Connection\Aggregate` namespace has been split into two separate
+  namespaces for cluster backends (`Predis\Connection\Cluster`) and replication
+  backends (`Predis\Connection\Replication`).
+
+- The method `Predis\Connection\AggregateConnectionInterface::getConnection()`
+  has been renamed to `getConnectionByCommand()`.
+
+- The methods `switchToMaster()` and `switchToSlave()` have been promoted to be
+  part of `Predis\Connection\Replication\ReplicationInterface` while the method
+  `switchTo($connection)` has been removed from it.
+
+- The method `Predis\Connection\Cluster\PredisCluster::executeCommandOnNodes()`
+  has been removed as it is possible to achieve the same by iterating over the
+  connection or, even better, over the client instance in order to execute the
+  same command against all of the registered connections.
+
+v1.1.5 (2020-09-10)
+================================================================================
+
+- __FIX__: authentication for sentinels is now supported, previously it was not
+possible to specify a `password` for sentinels as its value was stripped during
+initialization because sentinels did not support authentication until Redis 5.
+**Please note** that with the current implementation each sentinel must have
+its own `password` parameter set in the parameters list despite this password is
+the same for all sentinels (read how `requirepass` works on the Redis docs). In
+this case you should avoid using the global `parameters` client option used to
+set default parameters for every connection created by Predis as this would end
+up using the same password even when connecting to actual Redis nodes.
+
+- __FIX__: the username is now correctly retrieved from the userinfo fragment of
+the URI when using the "redis" scheme and a "username:password" pair is present.
+Values retrieved from the userinfo fragment always override the ones specified
+in `username` and `password` if those fields are present in the query string.
+
+- __FIX__: `Predis\Connection\WebdisConnection` was unable to connect to Webdis
+when using an IPv4 address in the URL and this is probably due to some change in
+cURL internals since the last time we tested it.
+
+- __FIX__: an exception is thrown whe passing `FALSE` or any value evaluating to
+`FALSE` to the `replication` client option. This was supposed to be unsupported,
+in fact it actually breaks client initialization and raises a PHP warning. Now
+the user is alerted with an `InvalidArgumentException` and a proper message.
+(PR #381).
+
+
+v1.1.4 (2020-08-31)
+================================================================================
+
+- Improved @method annotations for methods responding to Redis commands defined
+  by `Predis\ClientInterface` and `Predis\ClientContextInterface`. (PR #456 and
+  PR #497, other fixes applied after further analysys).
+
+- __FIX__: the client can now handle ACL authentication when connecting to Redis
+  6.x simply by passing both `username` and `password` to connection parameters.
+  See [the Redis docs](https://redis.io/topics/acl) for details on this topic.
+
+- __FIX__: NULL or zero-length string values passed to `password` and `database`
+  in the connection parameters list do not trigger spurious `AUTH` and `SELECT`
+  commands anymore when connecting to Redis (ISSUE #436).
+
+- __FIX__: initializing an iteration over a client instance when it is connected
+  to a standalone Redis server will not throw an exception anymore, instead it
+  will return an iterator that will run for just one loop returning a new client
+  instance using the underlying single-node connection (ISSUE #552, PR #556).
+
+- __FIX__: `Predis\Cluster\Distributor\HashRingaddNodeToRing()` was calculating
+  the hash required for distribution by using `crc32()` directly instead of the
+  method `Predis\Cluster\Hash\HashGeneratorInterface::hash()` implemented by the
+  class itself. This bug fix does not have any impact on existing clusters that
+  use client-side sharding based on this distributor simply because it does not
+  take any external hash generators so distribution is not going to be affected.
+
+- __FIX__: `SORT` now always trigger a switch to the master node in replication
+  configurations instead of just when the `STORE` modifier is specified, this is
+  because `SORT` is always considered to be a write operation and actually fails
+  with a `-READONLY` error response when executed against a replica node. (ISSUE
+  #554).
+
+
+v1.1.3 (2020-08-18)
+================================================================================
+
+- Ensure compatibility with PHP 8.
+
+- Moved repository from `github.com/nrk/predis` to `github.com/predis/predis`.
+
+- __FIX__: Moved `cweagans/composer-patches` dependency to `require-dev`.
+
+- __FIX__: Include PHPUnit `.patch` files in exports.
+
+
+v1.1.2 (2020-08-11)
 ================================================================================
 
 - __FIX__: pure CRC16 implementation failed to calculate the correct hash when

@@ -34,6 +34,10 @@ if($redis) {
       }
 
       $key = explode($server['seperator'], $key);
+      if ($config['showEmptyNamespaceAsKey'] && $key[count($key) - 1] == '') {
+        array_pop($key);
+        $key[count($key) - 1] .= ':';
+      }
 
       // $d will be a reference to the current namespace.
       $d = &$namespaces;
@@ -96,10 +100,15 @@ if($redis) {
           }
         }
 
+        if (empty($name) && $name != '0') {
+          $name = '<empty>';
+          $class[] = 'empty';
+        }
 
         ?>
         <li<?php echo empty($class) ? '' : ' class="'.implode(' ', $class).'"'?>>
-        <a href="?view&amp;s=<?php echo $server['id']?>&amp;d=<?php echo $server['db']?>&amp;key=<?php echo urlencode($fullkey)?>"><?php echo format_html($name)?><?php if ($len !== false) { ?><span class="info">(<?php echo $len?>)</span><?php } ?></a>
+        <input type="checkbox" name="checked_keys" value="<?php echo $fullkey?>"/>
+        <a href="?view&amp;s=<?php echo $server['id']?>&amp;d=<?php echo $server['db']?>&amp;key=<?php echo urlencode($fullkey)?>" title="<?php echo format_html($name)?>"><?php echo format_html($name)?><?php if ($len !== false) { ?><span class="info">(<?php echo $len?>)</span><?php } ?></a>
         </li>
         <?php
       }
@@ -109,7 +118,7 @@ if($redis) {
         ?>
         <li class="folder<?php echo ($fullkey === '') ? '' : ' collapsed'?><?php echo $islast ? ' last' : ''?>">
         <div class="icon"><?php echo format_html($name)?>&nbsp;<span class="info">(<?php echo count($item)?>)</span>
-        <?php if ($fullkey !== '') { ?><a href="delete.php?s=<?php echo $server['id']?>&amp;d=<?php echo $server['db']?>&amp;tree=<?php echo urlencode($fullkey)?>:" class="deltree"><img src="images/delete.png" width="10" height="10" title="Delete tree" alt="[X]"></a><?php } ?>
+        <?php if ($fullkey !== '') { ?><a href="delete.php?s=<?php echo $server['id']?>&amp;d=<?php echo $server['db']?>&amp;tree=<?php echo urlencode($fullkey).$server['seperator']?>" class="deltree"><img src="images/delete.png" width="10" height="10" title="Delete tree" alt="[X]"></a><?php } ?>
         </div><ul>
         <?php
 
@@ -133,7 +142,28 @@ if($redis) {
       }
     }
 
+    function getDbInfo($d, $info, $padding = '') {
+      global $config, $server;
+      $prefix = "database ";
+      $db = "db$d";
+
+      $dbHasData = array_key_exists("db$d", $info['Keyspace']);
+
+      if (!$dbHasData && ((isset($server['hide']) && $server['hide']) || (!isset($server['hide']) && $config['hideEmptyDBs']))) {
+        return false; // we don't show empty dbs, so return false to tell the caller to continue the loop
+      }
+
+      $dbinfo = sprintf("$prefix%'.-${padding}d", $d);
+      if ($dbHasData) {
+        $dbinfo = sprintf("%s (%d)", $dbinfo, $info['Keyspace'][$db]['keys']);
+      }
+      $dbinfo = str_replace('.', '&nbsp;&nbsp;', $dbinfo); // 2 spaces per character are needed to get the alignment right
+
+      return $dbinfo;
+    }
+
 }  // if redis
+
 
 
 // This is basically the same as the click code in index.js.
@@ -160,7 +190,7 @@ require 'includes/header.inc.php';
 
 ?>
 <div id="sidebar">
-
+<div id="header">
 <h1 class="logo"><a href="?overview&amp;s=<?php echo $server['id']?>&amp;d=<?php echo $server['db']?>">phpRedisAdmin</a></h1>
 
 <p>
@@ -179,10 +209,11 @@ if (isset($server['databases'])) {
   $databases = $redis->config('GET', 'databases');
   $databases = $databases['databases'];
 }
+$info = $redis->info(); $len = strlen((string)($databases-1));
 if ($databases > 1) { ?>
   <select id="database">
-  <?php for ($d = 0; $d < $databases; ++$d) { ?>
-  <option value="<?php echo $d?>" <?php echo ($server['db'] == $d) ? 'selected="selected"' : ''?>>database <?php echo $d?></option>
+  <?php for ($d = 0; $d < $databases; ++$d) { if (($dbinfo=getDbInfo($d, $info, $len)) === false) continue; ?>
+  <option value="<?php echo $d?>" <?php echo ($server['db'] == $d) ? 'selected="selected"' : ''?>><?php echo "$dbinfo"; ?></option>
   <?php } ?>
   </select>
 <?php } ?>
@@ -212,7 +243,11 @@ if ($databases > 1) { ?>
 <p>
 <input type="text" id="filter" size="24" value="type here to filter" placeholder="type here to filter" class="info">
 </p>
-
+<button id="selected_all_keys">Select all</button>
+<button id="operations">
+<a href="delete.php?s=<?php echo $server['id']?>&amp;d=<?php echo $server['db']?>&batch_del=1" class="batch_del">Delete selected<img src="images/delete.png" style="width: 1em;height: 1em;vertical-align: middle;" title="Delete selected" alt="[X]"></a>
+</button>
+</div>
 <div id="keys">
 <ul>
 <?php print_namespace($namespaces, 'Keys', '', empty($namespaces))?>

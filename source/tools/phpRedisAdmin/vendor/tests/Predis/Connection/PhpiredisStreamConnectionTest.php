@@ -11,6 +11,7 @@
 
 namespace Predis\Connection;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use Predis\Command\RawCommand;
 use Predis\Response\Error as ErrorResponse;
 
@@ -20,15 +21,22 @@ use Predis\Response\Error as ErrorResponse;
  */
 class PhpiredisStreamConnectionTest extends PredisConnectionTestCase
 {
-    const CONNECTION_CLASS = 'Predis\Connection\PhpiredisStreamConnection';
+    /**
+     * @inheritDoc
+     */
+    public function getConnectionClass(): string
+    {
+        return 'Predis\Connection\PhpiredisStreamConnection';
+    }
 
     /**
      * @group disconnected
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage SSL encryption is not supported by this connection backend.
      */
-    public function testSupportsSchemeTls()
+    public function testSupportsSchemeTls(): void
     {
+        $this->expectException('InvalidArgumentException');
+        $this->expectExceptionMessage('SSL encryption is not supported by this connection backend');
+
         $connection = $this->createConnectionWithParams(array('scheme' => 'tls'));
 
         $this->assertInstanceOf('Predis\Connection\NodeConnectionInterface', $connection);
@@ -36,11 +44,12 @@ class PhpiredisStreamConnectionTest extends PredisConnectionTestCase
 
     /**
      * @group disconnected
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage SSL encryption is not supported by this connection backend.
      */
-    public function testSupportsSchemeRediss()
+    public function testSupportsSchemeRediss(): void
     {
+        $this->expectException('InvalidArgumentException');
+        $this->expectExceptionMessage('SSL encryption is not supported by this connection backend');
+
         $connection = $this->createConnectionWithParams(array('scheme' => 'rediss'));
 
         $this->assertInstanceOf('Predis\Connection\NodeConnectionInterface', $connection);
@@ -48,23 +57,26 @@ class PhpiredisStreamConnectionTest extends PredisConnectionTestCase
 
     /**
      * @group disconnected
-     * @expectedException \Predis\Connection\ConnectionException
-     * @expectedExceptionMessage `SELECT` failed: ERR invalid DB index [tcp://127.0.0.1:6379]
      */
-    public function testThrowsExceptionOnInitializationCommandFailure()
+    public function testThrowsExceptionOnInitializationCommandFailure(): void
     {
+        $this->expectException('Predis\Connection\ConnectionException');
+        $this->expectExceptionMessage("`SELECT` failed: ERR invalid DB index [tcp://127.0.0.1:6379]");
+
         $cmdSelect = RawCommand::create('SELECT', '1000');
 
-        $connection = $this->getMockBuilder(static::CONNECTION_CLASS)
-                           ->setMethods(array('executeCommand', 'createResource'))
-                           ->setConstructorArgs(array(new Parameters()))
-                           ->getMock();
-
-        $connection->method('executeCommand')
-                   ->with($cmdSelect)
-                   ->will($this->returnValue(
-                       new ErrorResponse('ERR invalid DB index')
-                   ));
+        /** @var NodeConnectionInterface|MockObject */
+        $connection = $this
+            ->getMockBuilder($this->getConnectionClass())
+            ->onlyMethods(array('executeCommand', 'createResource'))
+            ->setConstructorArgs(array(new Parameters()))
+            ->getMock();
+        $connection
+            ->method('executeCommand')
+            ->with($cmdSelect)
+            ->willReturn(
+                new ErrorResponse('ERR invalid DB index')
+            );
 
         $connection->method('createResource');
 
@@ -80,30 +92,32 @@ class PhpiredisStreamConnectionTest extends PredisConnectionTestCase
      * @group connected
      * @group slow
      * @requires PHP 5.4
-     * @expectedException \Predis\Connection\ConnectionException
      */
-    public function testThrowsExceptionOnReadWriteTimeout()
+    public function testThrowsExceptionOnReadWriteTimeout(): void
     {
-        $profile = $this->getCurrentProfile();
+        $this->expectException('Predis\Connection\ConnectionException');
 
         $connection = $this->createConnectionWithParams(array(
             'read_write_timeout' => 0.5,
         ), true);
 
-        $connection->executeCommand($profile->createCommand('brpop', array('foo', 3)));
+        $connection->executeCommand(
+            $this->getCommandFactory()->create('brpop', array('foo', 3))
+        );
     }
 
     /**
      * @medium
      * @group connected
-     * @expectedException \Predis\Protocol\ProtocolException
      */
-    public function testThrowsExceptionOnProtocolDesynchronizationErrors()
+    public function testThrowsExceptionOnProtocolDesynchronizationErrors(): void
     {
+        $this->expectException('Predis\Protocol\ProtocolException');
+
         $connection = $this->createConnection();
         $stream = $connection->getResource();
 
-        $connection->writeRequest($this->getCurrentProfile()->createCommand('ping'));
+        $connection->writeRequest($this->getCommandFactory()->create('ping'));
         stream_socket_recvfrom($stream, 1);
 
         $connection->read();
@@ -113,7 +127,7 @@ class PhpiredisStreamConnectionTest extends PredisConnectionTestCase
      * @group connected
      * @requires PHP 5.4
      */
-    public function testPersistentParameterWithFalseLikeValues()
+    public function testPersistentParameterWithFalseLikeValues(): void
     {
         $connection1 = $this->createConnectionWithParams(array('persistent' => 0));
         $this->assertNonPersistentConnection($connection1);
@@ -132,7 +146,7 @@ class PhpiredisStreamConnectionTest extends PredisConnectionTestCase
      * @group connected
      * @requires PHP 5.4
      */
-    public function testPersistentParameterWithTrueLikeValues()
+    public function testPersistentParameterWithTrueLikeValues(): void
     {
         $connection1 = $this->createConnectionWithParams(array('persistent' => 1));
         $this->assertPersistentConnection($connection1);
@@ -153,7 +167,7 @@ class PhpiredisStreamConnectionTest extends PredisConnectionTestCase
      * @group connected
      * @requires PHP 5.4
      */
-    public function testPersistentConnectionsToSameNodeShareResource()
+    public function testPersistentConnectionsToSameNodeShareResource(): void
     {
         $connection1 = $this->createConnectionWithParams(array('persistent' => true));
         $connection2 = $this->createConnectionWithParams(array('persistent' => true));
@@ -170,7 +184,7 @@ class PhpiredisStreamConnectionTest extends PredisConnectionTestCase
      * @group connected
      * @requires PHP 5.4
      */
-    public function testPersistentConnectionsToSameNodeDoNotShareResourceUsingDifferentPersistentID()
+    public function testPersistentConnectionsToSameNodeDoNotShareResourceUsingDifferentPersistentID(): void
     {
         $connection1 = $this->createConnectionWithParams(array('persistent' => 'conn1'));
         $connection2 = $this->createConnectionWithParams(array('persistent' => 'conn2'));
@@ -179,5 +193,47 @@ class PhpiredisStreamConnectionTest extends PredisConnectionTestCase
         $this->assertPersistentConnection($connection2);
 
         $this->assertNotSame($connection1->getResource(), $connection2->getResource());
+    }
+
+    /**
+     * @group connected
+     */
+    public function testTcpNodelayParameterSetsContextFlagWhenTrue()
+    {
+        $connection = $this->createConnectionWithParams(['tcp_nodelay' => true]);
+        $options = stream_context_get_options($connection->getResource());
+
+        $this->assertIsArray($options);
+        $this->assertArrayHasKey('socket', $options);
+        $this->assertArrayHasKey('tcp_nodelay', $options['socket']);
+        $this->assertTrue($options['socket']['tcp_nodelay']);
+    }
+
+    /**
+     * @group connected
+     */
+    public function testTcpNodelayParameterDoesNotSetContextFlagWhenFalse()
+    {
+        $connection = $this->createConnectionWithParams(['tcp_nodelay' => false]);
+        $options = stream_context_get_options($connection->getResource());
+
+        $this->assertIsArray($options);
+        $this->assertArrayHasKey('socket', $options);
+        $this->assertArrayHasKey('tcp_nodelay', $options['socket']);
+        $this->assertFalse($options['socket']['tcp_nodelay']);
+    }
+
+    /**
+     * @group connected
+     */
+    public function testTcpDelayContextFlagIsNotSetByDefault()
+    {
+        $connection = $this->createConnectionWithParams([]);
+        $options = stream_context_get_options($connection->getResource());
+
+        $this->assertIsArray($options);
+        $this->assertArrayHasKey('socket', $options);
+        $this->assertArrayHasKey('tcp_nodelay', $options['socket']);
+        $this->assertFalse($options['socket']['tcp_nodelay']);
     }
 }

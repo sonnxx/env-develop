@@ -9,63 +9,67 @@
  * file that was distributed with this source code.
  */
 
+use PHPUnit\Framework\MockObject\MockObject;
 use Predis\Client;
 use Predis\Command;
 use Predis\Connection;
-use Predis\Profile;
 
 /**
  * Base test case class for the Predis test suite.
  */
-abstract class PredisTestCase extends \PHPUnit_Framework_TestCase
+abstract class PredisTestCase extends \PHPUnit\Framework\TestCase
 {
     protected $redisServerVersion = null;
 
     /**
-     * Sleep the test case with microseconds resolution.
-     *
-     * @param float $seconds Seconds to sleep.
+     * {@inheritdoc}
      */
-    protected function sleep($seconds)
+    protected function setUp(): void
     {
-        usleep($seconds * 1000000);
+        $this->checkRequiredRedisServerVersion();
     }
 
     /**
-     * Returns if the current runtime is HHVM.
+     * Pauses the test case for the specified amount of time in seconds.
      *
-     * @return bool
+     * @param float $seconds Seconds to sleep
      */
-    protected function isHHVM()
+    protected function sleep(float $seconds): void
     {
-        return defined('HHVM_VERSION');
+        usleep($seconds * 1000000);
     }
 
     /**
      * Verifies that a Redis command is a valid Predis\Command\CommandInterface
      * instance with the specified ID and command arguments.
      *
-     * @param string|Command\CommandInterface $command   Expected command or command ID.
-     * @param array                           $arguments Expected command arguments.
+     * @param Command\CommandInterface|string $command   Expected command instance or command ID
+     * @param ?array                          $arguments Expected command arguments
      *
      * @return RedisCommandConstraint
      */
-    public function isRedisCommand($command = null, array $arguments = null)
+    public function isRedisCommand($command = null, ?array $arguments = null): RedisCommandConstraint
     {
         return new RedisCommandConstraint($command, $arguments);
     }
 
     /**
-     * Verifies that a Redis command is a valid Predis\Command\CommandInterface
-     * instance with the specified ID and command arguments. The comparison does
-     * not check for identity when passing a Predis\Command\CommandInterface
-     * instance for $expected.
+     * Ensures that two Redis commands are similar.
      *
-     * @param array|string|Command\CommandInterface $expected Expected command.
-     * @param mixed                                 $actual   Actual command.
-     * @param string                                $message  Optional assertion message.
+     * This method supports can test for different contraints by accepting a few
+     * combinations of values as indicated below:
+     *
+     * - a string identifying a Redis command by its ID
+     * - an instance of Predis\Command\CommandInterface
+     * - an array of [(string) $commandID, (array) $commandArguments]
+     *
+     * Internally this method uses the RedisCommandConstraint class.
+     *
+     * @param Command\CommandInterface|string|array $expected Expected command instance or command ID
+     * @param mixed                                 $actual   Actual command
+     * @param string                                $message  Optional assertion message
      */
-    public function assertRedisCommand($expected, $actual, $message = '')
+    public function assertRedisCommand($expected, $actual, string $message = ''): void
     {
         if (is_array($expected)) {
             @list($command, $arguments) = $expected;
@@ -78,53 +82,67 @@ abstract class PredisTestCase extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * Asserts that two arrays have the same values, even if with different order.
+     * Asserts that two arrays have the same values (even with different order).
      *
-     * @param array  $expected Expected array.
-     * @param array  $actual   Actual array.
-     * @param string $message  Optional assertion message.
+     * @param array  $expected Expected array
+     * @param array  $actual   Actual array
+     * @param string $message  Optional assertion message
      */
-    public function assertSameValues(array $expected, array $actual, $message = '')
+    public function assertSameValues(array $expected, array $actual, $message = ''): void
     {
         $this->assertThat($actual, new ArrayHasSameValuesConstraint($expected), $message);
     }
 
     /**
-     * Returns a named array with the default connection parameters and their values.
+     * Asserts that a string matches a given regular expression.
      *
-     * @return array Default connection parameters.
+     * @throws ExpectationFailedException
+     * @throws \SebastianBergmann\RecursionContext\InvalidArgumentException
      */
-    protected function getDefaultParametersArray()
+    public static function assertMatchesRegularExpression(string $pattern, string $string, $message = ''): void
+    {
+        if (is_callable('parent::' . __FUNCTION__)) {
+            call_user_func('parent::' . __FUNCTION__, $pattern, $string, $message);
+        } else {
+            static::assertRegExp($pattern, $string, $message);
+        }
+    }
+
+    /**
+     * Returns a named array with default values for connection parameters.
+     *
+     * @return array Default connection parameters
+     */
+    protected function getDefaultParametersArray(): array
     {
         return array(
             'scheme' => 'tcp',
-            'host' => REDIS_SERVER_HOST,
-            'port' => REDIS_SERVER_PORT,
-            'database' => REDIS_SERVER_DBNUM,
+            'host' => constant('REDIS_SERVER_HOST'),
+            'port' => constant('REDIS_SERVER_PORT'),
+            'database' => constant('REDIS_SERVER_DBNUM'),
         );
     }
 
     /**
-     * Returns a named array with the default client options and their values.
+     * Returns a named array with default values for client options.
      *
-     * @return array Default connection parameters.
+     * @return array Default connection parameters
      */
-    protected function getDefaultOptionsArray()
+    protected function getDefaultOptionsArray(): array
     {
         return array(
-            'profile' => REDIS_SERVER_VERSION,
+            'commands' => new Command\RedisFactory(),
         );
     }
 
     /**
-     * Returns a named array with the default connection parameters merged with
-     * the specified additional parameters.
+     * Merges a named array of connection parameters with current defaults.
      *
-     * @param array $additional Additional connection parameters.
+     * @param array $additional Additional connection parameters
      *
-     * @return array Connection parameters.
+     * @return array
      */
-    protected function getParametersArray(array $additional)
+    protected function getParametersArray(array $additional): array
     {
         return array_merge($this->getDefaultParametersArray(), $additional);
     }
@@ -132,11 +150,13 @@ abstract class PredisTestCase extends \PHPUnit_Framework_TestCase
     /**
      * Returns a new instance of connection parameters.
      *
-     * @param array $additional Additional connection parameters.
+     * Values in the optional $additional named array are merged with defaults.
      *
-     * @return Connection\Parameters
+     * @param array $additional Additional connection parameters
+     *
+     * @return Connection\ParametersInterface
      */
-    protected function getParameters($additional = array())
+    protected function getParameters($additional = array()): Connection\ParametersInterface
     {
         $parameters = array_merge($this->getDefaultParametersArray(), $additional);
         $parameters = new Connection\Parameters($parameters);
@@ -145,41 +165,28 @@ abstract class PredisTestCase extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * Returns a new instance of server profile.
+     * Returns a new instance of command factory.
      *
-     * @param string $version Redis profile.
-     *
-     * @return Profile\ProfileInterface
+     * @return Command\Factory
      */
-    protected function getProfile($version = null)
+    protected function getCommandFactory(): Command\Factory
     {
-        return Profile\Factory::get($version ?: REDIS_SERVER_VERSION);
+        return new Command\RedisFactory();
     }
 
     /**
-     * Returns the current server profile in use by the test suite.
+     * Returns a new instance of Predis\Client.
      *
-     * @return Profile\ProfileInterface
-     */
-    protected function getCurrentProfile()
-    {
-        static $profile;
-
-        $profile = $this->getProfile();
-
-        return $profile;
-    }
-
-    /**
-     * Returns a new client instance.
+     * Values in the optional $parameters named array are merged with defaults.
+     * Values in the ottional $options named array are merged with defaults.
      *
-     * @param array $parameters Additional connection parameters.
-     * @param array $options    Additional client options.
-     * @param bool  $flushdb    Flush selected database before returning the client.
+     * @param array $parameters Additional connection parameters
+     * @param array $options    Additional client options
+     * @param bool  $flushdb    Flush selected database before returning the client
      *
      * @return Client
      */
-    protected function createClient(array $parameters = null, array $options = null, $flushdb = true)
+    protected function createClient(?array $parameters = null, ?array $options = null, ?bool $flushdb = true): Client
     {
         $parameters = array_merge(
             $this->getDefaultParametersArray(),
@@ -188,7 +195,7 @@ abstract class PredisTestCase extends \PHPUnit_Framework_TestCase
 
         $options = array_merge(
             array(
-                'profile' => $this->getProfile(),
+                'commands' => $this->getCommandFactory(),
             ),
             $options ?: array()
         );
@@ -204,29 +211,66 @@ abstract class PredisTestCase extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * Returns a base mocked connection from Predis\Connection\NodeConnectionInterface.
+     * Returns a basic mock object of a connection to a single Redis node.
      *
-     * @param mixed $parameters Optional parameters.
+     * The specified target interface used for the mock object must implement
+     * Predis\Connection\NodeConnectionInterface.
      *
-     * @return mixed
+     * The mock object responds to getParameters() and __toString() by returning
+     * the default connection parameters used by Predis or a set of connection
+     * parameters specified in the optional second argument.
+     *
+     * @param string       $interface  Fully-qualified name of the target interface
+     * @param array|string $parameters Optional connection parameters
+     *
+     * @return MockObject|Connection\NodeConnectionInterface
      */
-    protected function getMockConnection($parameters = null)
+    protected function getMockConnectionOfType(string $interface, $parameters = null)
     {
-        $connection = $this->getMock('Predis\Connection\NodeConnectionInterface');
+        if (!is_a($interface, '\Predis\Connection\NodeConnectionInterface', true)) {
+            $method = __METHOD__;
+
+            throw new \InvalidArgumentException(
+                "Argument `\$interface` for $method() expects a type implementing Predis\Connection\NodeConnectionInterface"
+            );
+        }
+
+        $connection = $this->getMockBuilder($interface)->getMock();
 
         if ($parameters) {
             $parameters = Connection\Parameters::create($parameters);
             $hash = "{$parameters->host}:{$parameters->port}";
 
-            $connection->expects($this->any())
-                       ->method('getParameters')
-                       ->will($this->returnValue($parameters));
-            $connection->expects($this->any())
-                       ->method('__toString')
-                       ->will($this->returnValue($hash));
+            $connection
+                ->expects($this->any())
+                ->method('getParameters')
+                ->willReturn($parameters);
+            $connection
+                ->expects($this->any())
+                ->method('__toString')
+                ->willReturn($hash);
         }
 
         return $connection;
+    }
+
+    /**
+     * Returns a basic mock object of a connection to a single Redis node.
+     *
+     * The mock object is based on Predis\Connection\NodeConnectionInterface.
+     *
+     * The mock object responds to getParameters() and __toString() by returning
+     * the default connection parameters used by Predis or a set of connection
+     * parameters specified in the optional second argument.
+     *
+
+     * @param array|string|null $parameters Optional connection parameters
+     *
+     * @return MockObject|Connection\NodeConnectionInterface
+     */
+    protected function getMockConnection($parameters = null)
+    {
+        return $this->getMockConnectionOfType('Predis\Connection\NodeConnectionInterface', $parameters);
     }
 
     /**
@@ -236,7 +280,7 @@ abstract class PredisTestCase extends \PHPUnit_Framework_TestCase
      *
      * @return string
      */
-    protected function getRedisServerVersion()
+    protected function getRedisServerVersion(): string
     {
         if (isset($this->redisServerVersion)) {
             return $this->redisServerVersion;
@@ -252,7 +296,8 @@ abstract class PredisTestCase extends \PHPUnit_Framework_TestCase
             // Redis < 2.6
             $version = $info['redis_version'];
         } else {
-            throw new RuntimeException('Unable to retrieve server info');
+            $connection = $client->getConnection();
+            throw new RuntimeException("Unable to retrieve a valid server info payload from $connection");
         }
 
         $this->redisServerVersion = $version;
@@ -261,12 +306,14 @@ abstract class PredisTestCase extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * Returns the Redis server version required to run a @connected test from
-     * the @requiresRedisVersion annotation decorating a test method.
+     * Returns the Redis server version required to run a @connected test.
+     *
+     * This value is retrieved from the @requiresRedisVersion annotation that
+     * decorates the target test method.
      *
      * @return string
      */
-    protected function getRequiredRedisServerVersion()
+    protected function getRequiredRedisServerVersion(): ?string
     {
         $annotations = $this->getAnnotations();
 
@@ -277,19 +324,19 @@ abstract class PredisTestCase extends \PHPUnit_Framework_TestCase
             return $annotations['method']['requiresRedisVersion'][0];
         }
 
-        return;
+        return null;
     }
 
     /**
      * Compares the specified version string against the Redis server version in
      * use for integration tests.
      *
-     * @param string $operator Comparison operator.
-     * @param string $version  Version to compare.
+     * @param string $operator Comparison operator
+     * @param string $version  Version to compare
      *
      * @return bool
      */
-    public function isRedisServerVersion($operator, $version)
+    public function isRedisServerVersion(string $operator, string $version): bool
     {
         $serverVersion = $this->getRedisServerVersion();
         $comparation = version_compare($serverVersion, $version);
@@ -298,12 +345,15 @@ abstract class PredisTestCase extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * Checks that the Redis server version used to run integration tests mets
-     * the requirements specified with the @requiresRedisVersion annotation.
+     * Ensures the current Redis server matches version requirements for tests.
      *
-     * @throws \PHPUnit_Framework_SkippedTestError When expected Redis server version is not met.
+     * Requirements are retrieved from the @requiresRedisVersion annotation that
+     * decorates test methods while the version of the Redis server used to run
+     * integration tests is retrieved directly from the server by using `INFO`.
+     *
+     * @throws \PHPUnit\Framework\SkippedTestError When the required Redis server version is not met
      */
-    protected function checkRequiredRedisServerVersion()
+    protected function checkRequiredRedisServerVersion(): void
     {
         if (!$requiredVersion = $this->getRequiredRedisServerVersion()) {
             return;
@@ -323,18 +373,20 @@ abstract class PredisTestCase extends \PHPUnit_Framework_TestCase
             $serverVersion = $this->getRedisServerVersion();
 
             $this->markTestSkipped(
-                "This test requires Redis $reqOperator $reqVersion but the current version is $serverVersion."
+                "Test requires a Redis server instance $reqOperator $reqVersion but target server is $serverVersion"
             );
         }
     }
 
     /**
-     * {@inheritdoc}
+     * Marks current test skipped when test suite is running on CI environments.
+     *
+     * @param string $message
      */
-    protected function checkRequirements()
+    protected function markTestSkippedOnCIEnvironment(string $message = 'Test skipped on CI environment'): void
     {
-        parent::checkRequirements();
-
-        $this->checkRequiredRedisServerVersion();
+        if (getenv('GITHUB_ACTIONS') || getenv('TRAVIS')) {
+            $this->markTestSkipped($message);
+        }
     }
 }

@@ -11,6 +11,7 @@
 
 namespace Predis\Connection;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use Predis\Command\RawCommand;
 use Predis\Response\Error as ErrorResponse;
 
@@ -19,27 +20,36 @@ use Predis\Response\Error as ErrorResponse;
  */
 class CompositeStreamConnectionTest extends PredisConnectionTestCase
 {
-    const CONNECTION_CLASS = 'Predis\Connection\CompositeStreamConnection';
+    /**
+     * @inheritDoc
+     */
+    protected function getConnectionClass(): string
+    {
+        return 'Predis\Connection\CompositeStreamConnection';
+    }
 
     /**
      * @group disconnected
-     * @expectedException \Predis\Connection\ConnectionException
-     * @expectedExceptionMessage `SELECT` failed: ERR invalid DB index [tcp://127.0.0.1:6379]
      */
-    public function testThrowsExceptionOnInitializationCommandFailure()
+    public function testThrowsExceptionOnInitializationCommandFailure(): void
     {
+        $this->expectException('Predis\Connection\ConnectionException');
+        $this->expectExceptionMessage("`SELECT` failed: ERR invalid DB index [tcp://127.0.0.1:6379]");
+
         $cmdSelect = RawCommand::create('SELECT', '1000');
 
-        $connection = $this->getMockBuilder(static::CONNECTION_CLASS)
-                           ->setMethods(array('executeCommand', 'createResource'))
-                           ->setConstructorArgs(array(new Parameters()))
-                           ->getMock();
-
-        $connection->method('executeCommand')
-                   ->with($cmdSelect)
-                   ->will($this->returnValue(
-                       new ErrorResponse('ERR invalid DB index')
-                   ));
+        /** @var NodeConnectionInterface|MockObject */
+        $connection = $this
+            ->getMockBuilder($this->getConnectionClass())
+            ->onlyMethods(array('executeCommand', 'createResource'))
+            ->setConstructorArgs(array(new Parameters()))
+            ->getMock();
+        $connection
+            ->method('executeCommand')
+            ->with($cmdSelect)
+            ->willReturn(
+                new ErrorResponse('ERR invalid DB index')
+            );
 
         $connection->method('createResource');
 
@@ -54,15 +64,16 @@ class CompositeStreamConnectionTest extends PredisConnectionTestCase
     /**
      * @group connected
      */
-    public function testReadsMultibulkResponsesAsIterators()
+    public function testReadsMultibulkResponsesAsIterators(): void
     {
+        /** @var CompositeConnectionInterface */
         $connection = $this->createConnection(true);
-        $profile = $this->getCurrentProfile();
+        $commands = $this->getCommandFactory();
 
         $connection->getProtocol()->useIterableMultibulk(true);
 
-        $connection->executeCommand($profile->createCommand('rpush', array('metavars', 'foo', 'hoge', 'lol')));
-        $connection->writeRequest($profile->createCommand('lrange', array('metavars', 0, -1)));
+        $connection->executeCommand($commands->create('rpush', array('metavars', 'foo', 'hoge', 'lol')));
+        $connection->writeRequest($commands->create('lrange', array('metavars', 0, -1)));
 
         $this->assertInstanceOf('Predis\Response\Iterator\MultiBulkIterator', $iterator = $connection->read());
         $this->assertSame(array('foo', 'hoge', 'lol'), iterator_to_array($iterator));
@@ -72,7 +83,7 @@ class CompositeStreamConnectionTest extends PredisConnectionTestCase
      * @group connected
      * @requires PHP 5.4
      */
-    public function testPersistentParameterWithFalseLikeValues()
+    public function testPersistentParameterWithFalseLikeValues(): void
     {
         $connection1 = $this->createConnectionWithParams(array('persistent' => 0));
         $this->assertNonPersistentConnection($connection1);
@@ -91,7 +102,7 @@ class CompositeStreamConnectionTest extends PredisConnectionTestCase
      * @group connected
      * @requires PHP 5.4
      */
-    public function testPersistentParameterWithTrueLikeValues()
+    public function testPersistentParameterWithTrueLikeValues(): void
     {
         $connection1 = $this->createConnectionWithParams(array('persistent' => 1));
         $this->assertPersistentConnection($connection1);
@@ -112,7 +123,7 @@ class CompositeStreamConnectionTest extends PredisConnectionTestCase
      * @group connected
      * @requires PHP 5.4
      */
-    public function testPersistentConnectionsToSameNodeShareResource()
+    public function testPersistentConnectionsToSameNodeShareResource(): void
     {
         $connection1 = $this->createConnectionWithParams(array('persistent' => true));
         $connection2 = $this->createConnectionWithParams(array('persistent' => true));
@@ -129,7 +140,7 @@ class CompositeStreamConnectionTest extends PredisConnectionTestCase
      * @group connected
      * @requires PHP 5.4
      */
-    public function testPersistentConnectionsToSameNodeDoNotShareResourceUsingDifferentPersistentID()
+    public function testPersistentConnectionsToSameNodeDoNotShareResourceUsingDifferentPersistentID(): void
     {
         $connection1 = $this->createConnectionWithParams(array('persistent' => 'conn1'));
         $connection2 = $this->createConnectionWithParams(array('persistent' => 'conn2'));

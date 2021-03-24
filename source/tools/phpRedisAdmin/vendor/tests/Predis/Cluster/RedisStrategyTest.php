@@ -11,8 +11,8 @@
 
 namespace Predis\Cluster;
 
-use Predis\Profile;
 use PredisTestCase;
+use PHPUnit\Framework\MockObject\MockObject;
 
 /**
  *
@@ -22,7 +22,7 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testSupportsKeyTags()
+    public function testSupportsKeyTags(): void
     {
         $strategy = $this->getClusterStrategy();
 
@@ -42,8 +42,9 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testSupportedCommands()
+    public function testSupportedCommands(): void
     {
+        /** @var RedisStrategy */
         $strategy = $this->getClusterStrategy();
 
         $this->assertSame($this->getExpectedCommands(), $strategy->getSupportedCommands());
@@ -52,10 +53,10 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testReturnsNullOnUnsupportedCommand()
+    public function testReturnsNullOnUnsupportedCommand(): void
     {
         $strategy = $this->getClusterStrategy();
-        $command = Profile\Factory::getDevelopment()->createCommand('ping');
+        $command = $this->getCommandFactory()->create('ping');
 
         $this->assertNull($strategy->getSlot($command));
     }
@@ -63,14 +64,14 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testFirstKeyCommands()
+    public function testFirstKeyCommands(): void
     {
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
+        $commands = $this->getCommandFactory();
         $arguments = array('key');
 
         foreach ($this->getExpectedCommands('keys-first') as $commandID) {
-            $command = $profile->createCommand($commandID, $arguments);
+            $command = $commands->create($commandID, $arguments);
             $this->assertNotNull($strategy->getSlot($command), $commandID);
         }
     }
@@ -78,14 +79,14 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testAllKeysCommandsWithOneKey()
+    public function testAllKeysCommandsWithOneKey(): void
     {
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
+        $commands = $this->getCommandFactory();
         $arguments = array('key');
 
         foreach ($this->getExpectedCommands('keys-all') as $commandID) {
-            $command = $profile->createCommand($commandID, $arguments);
+            $command = $commands->create($commandID, $arguments);
             $this->assertNotNull($strategy->getSlot($command), $commandID);
         }
     }
@@ -93,14 +94,14 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testAllKeysCommandsWithMoreKeys()
+    public function testAllKeysCommandsWithMoreKeys(): void
     {
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
+        $commands = $this->getCommandFactory();
         $arguments = array('key1', 'key2');
 
         foreach ($this->getExpectedCommands('keys-all') as $commandID) {
-            $command = $profile->createCommand($commandID, $arguments);
+            $command = $commands->create($commandID, $arguments);
             $this->assertNull($strategy->getSlot($command), $commandID);
         }
     }
@@ -108,14 +109,14 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testInterleavedKeysCommandsWithOneKey()
+    public function testInterleavedKeysCommandsWithOneKey(): void
     {
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
+        $commands = $this->getCommandFactory();
         $arguments = array('key:1', 'value1');
 
         foreach ($this->getExpectedCommands('keys-interleaved') as $commandID) {
-            $command = $profile->createCommand($commandID, $arguments);
+            $command = $commands->create($commandID, $arguments);
             $this->assertNotNull($strategy->getSlot($command), $commandID);
         }
     }
@@ -123,14 +124,14 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testInterleavedKeysCommandsWithMoreKeys()
+    public function testInterleavedKeysCommandsWithMoreKeys(): void
     {
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
+        $commands = $this->getCommandFactory();
         $arguments = array('key:1', 'value1', 'key:2', 'value2');
 
         foreach ($this->getExpectedCommands('keys-interleaved') as $commandID) {
-            $command = $profile->createCommand($commandID, $arguments);
+            $command = $commands->create($commandID, $arguments);
             $this->assertNull($strategy->getSlot($command), $commandID);
         }
     }
@@ -138,32 +139,32 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testKeysForSortCommand()
+    public function testKeysForSortCommand(): void
     {
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
+        $commands = $this->getCommandFactory();
         $arguments = array('{key}:1', 'value1', '{key}:2', 'value2');
 
         $commandID = 'SORT';
 
-        $command = $profile->createCommand($commandID, array('{key}:1'));
+        $command = $commands->create($commandID, array('{key}:1'));
         $this->assertNotNull($strategy->getSlot($command), $commandID);
 
-        $command = $profile->createCommand($commandID, array('{key}:1', array('STORE' => '{key}:2')));
+        $command = $commands->create($commandID, array('{key}:1', array('STORE' => '{key}:2')));
         $this->assertNotNull($strategy->getSlot($command), $commandID);
     }
 
     /**
      * @group disconnected
      */
-    public function testKeysForBlockingListCommandsWithOneKey()
+    public function testKeysForBlockingListCommandsWithOneKey(): void
     {
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
+        $commands = $this->getCommandFactory();
         $arguments = array('key:1', 10);
 
         foreach ($this->getExpectedCommands('keys-blockinglist') as $commandID) {
-            $command = $profile->createCommand($commandID, $arguments);
+            $command = $commands->create($commandID, $arguments);
             $this->assertNotNull($strategy->getSlot($command), $commandID);
         }
     }
@@ -171,14 +172,14 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testKeysForBlockingListCommandsWithMoreKeys()
+    public function testKeysForBlockingListCommandsWithMoreKeys(): void
     {
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
+        $commands = $this->getCommandFactory();
         $arguments = array('key:1', 'key:2', 10);
 
         foreach ($this->getExpectedCommands('keys-blockinglist') as $commandID) {
-            $command = $profile->createCommand($commandID, $arguments);
+            $command = $commands->create($commandID, $arguments);
             $this->assertNull($strategy->getSlot($command), $commandID);
         }
     }
@@ -186,48 +187,48 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testKeysForGeoradiusCommand()
+    public function testKeysForGeoradiusCommand(): void
     {
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
+        $commands = $this->getCommandFactory();
 
         $commandID = 'GEORADIUS';
 
-        $command = $profile->createCommand($commandID, array('{key}:1', 10, 10, 1, 'km'));
+        $command = $commands->create($commandID, array('{key}:1', 10, 10, 1, 'km'));
         $this->assertNotNull($strategy->getSlot($command), $commandID);
 
-        $command = $profile->createCommand($commandID, array('{key}:1', 10, 10, 1, 'km', 'store', '{key}:2', 'storedist', '{key}:3'));
+        $command = $commands->create($commandID, array('{key}:1', 10, 10, 1, 'km', 'store', '{key}:2', 'storedist', '{key}:3'));
         $this->assertNotNull($strategy->getSlot($command), $commandID);
     }
 
     /**
      * @group disconnected
      */
-    public function testKeysForGeoradiusByMemberCommand()
+    public function testKeysForGeoradiusByMemberCommand(): void
     {
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
+        $commands = $this->getCommandFactory();
 
         $commandID = 'GEORADIUSBYMEMBER';
 
-        $command = $profile->createCommand($commandID, array('{key}:1', 'member', 1, 'km'));
+        $command = $commands->create($commandID, array('{key}:1', 'member', 1, 'km'));
         $this->assertNotNull($strategy->getSlot($command), $commandID);
 
-        $command = $profile->createCommand($commandID, array('{key}:1', 'member', 1, 'km', 'store', '{key}:2', 'storedist', '{key}:3'));
+        $command = $commands->create($commandID, array('{key}:1', 'member', 1, 'km', 'store', '{key}:2', 'storedist', '{key}:3'));
         $this->assertNotNull($strategy->getSlot($command), $commandID);
     }
 
     /**
      * @group disconnected
      */
-    public function testKeysForEvalCommand()
+    public function testKeysForEvalCommand(): void
     {
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
+        $commands = $this->getCommandFactory();
         $arguments = array('%SCRIPT%', 1, 'key:1', 'value1');
 
         foreach ($this->getExpectedCommands('keys-script') as $commandID) {
-            $command = $profile->createCommand($commandID, $arguments);
+            $command = $commands->create($commandID, $arguments);
             $this->assertNotNull($strategy->getSlot($command), $commandID);
         }
     }
@@ -235,18 +236,23 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testKeysForScriptCommand()
+    public function testKeysForScriptCommand(): void
     {
         $strategy = $this->getClusterStrategy();
         $arguments = array('key:1', 'value1');
 
-        $command = $this->getMock('Predis\Command\ScriptCommand', array('getScript', 'getKeysCount'));
-        $command->expects($this->once())
-                ->method('getScript')
-                ->will($this->returnValue('return true'));
-        $command->expects($this->exactly(2))
-                ->method('getKeysCount')
-                ->will($this->returnValue(1));
+        /** @var \Predis\Command\CommandInterface|MockObject */
+        $command = $this->getMockBuilder('Predis\Command\ScriptCommand')
+            ->onlyMethods(array('getScript', 'getKeysCount'))
+            ->getMock();
+        $command
+            ->expects($this->once())
+            ->method('getScript')
+            ->willReturn('return true');
+        $command
+            ->expects($this->exactly(2))
+            ->method('getKeysCount')
+            ->willReturn(1);
         $command->setArguments($arguments);
 
         $this->assertNotNull($strategy->getSlot($command), "Script Command [{$command->getId()}]");
@@ -255,39 +261,55 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * @group disconnected
      */
-    public function testUnsettingCommandHandler()
+    public function testUnsettingCommandHandler(): void
     {
+        /** @var RedisStrategy */
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
-
         $strategy->setCommandHandler('set');
         $strategy->setCommandHandler('get', null);
 
-        $command = $profile->createCommand('set', array('key', 'value'));
+        $commands = $this->getCommandFactory();
+        $command = $commands->create('set', array('key', 'value'));
         $this->assertNull($strategy->getSlot($command));
 
-        $command = $profile->createCommand('get', array('key'));
+        $command = $commands->create('get', array('key'));
         $this->assertNull($strategy->getSlot($command));
     }
 
     /**
      * @group disconnected
      */
-    public function testSettingCustomCommandHandler()
+    public function testSettingCustomCommandHandler(): void
     {
+        $callable = $this->getMockBuilder('stdClass')
+            ->addMethods(array('__invoke'))
+            ->getMock();
+        $callable
+            ->expects($this->once())
+            ->method('__invoke')
+            ->with($this->isInstanceOf('Predis\Command\CommandInterface'))
+            ->willReturn('key');
+
+        /** @var RedisStrategy */
         $strategy = $this->getClusterStrategy();
-        $profile = Profile\Factory::getDevelopment();
-
-        $callable = $this->getMock('stdClass', array('__invoke'));
-        $callable->expects($this->once())
-                 ->method('__invoke')
-                 ->with($this->isInstanceOf('Predis\Command\CommandInterface'))
-                 ->will($this->returnValue('key'));
-
         $strategy->setCommandHandler('get', $callable);
 
-        $command = $profile->createCommand('get', array('key'));
+        $commands = $this->getCommandFactory();
+        $command = $commands->create('get', array('key'));
+
         $this->assertNotNull($strategy->getSlot($command));
+    }
+
+    /**
+     * @group disconnected
+     */
+    public function testThrowsExceptionOnGetDistributorMethod(): void
+    {
+        $this->expectException('Predis\NotSupportedException');
+        $this->expectExceptionMessage('Predis\Cluster\RedisStrategy does not provide an external distributor');
+
+        $strategy = $this->getClusterStrategy();
+        $strategy->getDistributor();
     }
 
     // ******************************************************************** //
@@ -299,7 +321,7 @@ class RedisStrategyTest extends PredisTestCase
      *
      * @return StrategyInterface
      */
-    protected function getClusterStrategy()
+    protected function getClusterStrategy(): StrategyInterface
     {
         $strategy = new RedisStrategy();
 
@@ -309,11 +331,11 @@ class RedisStrategyTest extends PredisTestCase
     /**
      * Returns the list of expected supported commands.
      *
-     * @param string $type Optional type of command (based on its keys)
+     * @param ?string $type Optional type of command (based on its keys)
      *
      * @return array
      */
-    protected function getExpectedCommands($type = null)
+    protected function getExpectedCommands(?string $type = null): array
     {
         $commands = array(
             /* commands operating on the key space */
@@ -450,7 +472,7 @@ class RedisStrategyTest extends PredisTestCase
         );
 
         if (isset($type)) {
-            $commands = array_filter($commands, function ($expectedType) use ($type) {
+            $commands = array_filter($commands, function (string $expectedType) use ($type) {
                 return $expectedType === $type;
             });
         }
