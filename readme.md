@@ -66,7 +66,7 @@ server {
 #### add Host
 
 ```sh
-$ echo '127.0.0.1 example.local adminer.local phpmyadmin.local' >> /etc/hosts
+$ echo '127.0.0.1 example.local www.example.local' >> /etc/hosts
 ```
 
 Services is now ready!! You can access it via http://example.local
